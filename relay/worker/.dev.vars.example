@@ -1,0 +1,2 @@
+# Shared secret between this relay and `droidline serve`. Use 32 random bytes in base64url.
+RELAY_TOKEN=

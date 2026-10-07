@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "droidline"
+version = "0.1.0"
+description = "Control Android phones from Python with one-line commands, without ADB."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Droidline contributors" }]
+keywords = ["android", "automation", "accessibility", "testing", "droidline"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://droidline.dev"
+Documentation = "https://droidline.dev/docs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/droidline"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "tests"]
+testpaths = ["tests"]

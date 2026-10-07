@@ -1,0 +1,6 @@
+{
+  "name": "droidline-examples",
+  "private": true,
+  "type": "module",
+  "dependencies": { "droidline": "file:../sdk/node" }
+}

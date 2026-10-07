@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Droidline</string>
+
+    <string name="tab_setup">Setup</string>
+    <string name="tab_pair">Pair</string>
+    <string name="tab_status">Status</string>
+
+    <string name="setup_intro">Droidline needs a few permissions to control this phone. Turn on each item below.</string>
+    <string name="step_on">On</string>
+    <string name="step_off">Off</string>
+    <string name="step_optional">Optional</string>
+    <string name="btn_open_settings">Open settings</string>
+    <string name="btn_app_info">App info</string>
+    <string name="btn_enable">Enable</string>
+    <string name="btn_select">Select</string>
+    <string name="btn_allow">Allow</string>
+    <string name="btn_grant">Grant</string>
+
+    <string name="a11y_title">Accessibility service</string>
+    <string name="a11y_desc">Reads the screen and taps, swipes and types for the commands you send from your PC.</string>
+    <string name="a11y_restricted">Android 13 and later lock this switch for apps installed outside an app store. If it is greyed out, open App info, tap the three-dot menu, choose Allow restricted settings, then try again.</string>
+    <string name="a11y_service_description">Lets the PC you paired read this screen and tap, swipe and type on it. Commands are accepted only from the paired PC, over an encrypted link.</string>
+
+    <string name="ime_title">Droidline keyboard</string>
+    <string name="ime_desc">Sends keys and text, and reads the clipboard. Enable it, then select it as the current keyboard.</string>
+    <string name="ime_enabled_not_selected">Enabled, not selected</string>
+    <string name="ime_bar_label">Droidline keyboard</string>
+    <string name="ime_switch">Switch keyboard</string>
+    <string name="ime_subtype" translatable="false">Droidline</string>
+
+    <string name="post_notif_title">Notifications</string>
+    <string name="post_notif_desc">Shows the connection status and update notices.</string>
+
+    <string name="battery_title">Battery optimization</string>
+    <string name="battery_desc">Keeps Droidline connected while the screen is off.</string>
+    <string name="battery_on">Not restricted</string>
+
+    <string name="notif_access_title">Notification access</string>
+    <string name="notif_access_desc">Only needed if you want notification events on your PC. Nothing is sent until you choose apps on the Status tab.</string>
+
+    <string name="vpn_title">VPN permission</string>
+    <string name="vpn_desc">Only needed for the per-app proxy command.</string>
+
+    <string name="pair_intro">Pair this phone with the PC that runs droidline serve.</string>
+    <string name="pair_replace_note">This phone is paired with %1$s. Pairing again replaces it.</string>
+    <string name="btn_scan_qr">Scan QR</string>
+    <string name="scan_prompt">Scan the pairing QR code shown on your PC</string>
+    <string name="qr_invalid">This is not a Droidline pairing code.</string>
+    <string name="btn_pair_wifi">Pair on this Wi-Fi</string>
+    <string name="searching">Looking for PCs on this Wi-Fi</string>
+    <string name="no_pc_found">No PC answered. Check that droidline serve is running and that both devices are on the same Wi-Fi.</string>
+    <string name="pick_pc">Choose a PC</string>
+    <string name="pc_pairing_closed">This PC is not accepting new phones right now</string>
+    <string name="code_instruction">On the PC, run:</string>
+    <string name="code_wait">Waiting for the PC. The code expires in 5 minutes.</string>
+    <string name="pairing_connecting">Connecting to the PC</string>
+    <string name="pair_done">Paired with %1$s.</string>
+    <string name="pair_failed">Pairing failed: %1$s</string>
+    <string name="pair_err_pairing_closed">pairing is not open on the PC.</string>
+    <string name="pair_err_unreachable">could not reach the PC.</string>
+    <string name="pair_err_code_expired">the code expired. Start again.</string>
+    <string name="btn_cancel">Cancel</string>
+
+    <string name="status_connection">Connection</string>
+    <string name="phase_connected">Connected</string>
+    <string name="phase_connecting">Connecting</string>
+    <string name="phase_offline">Offline, retrying</string>
+    <string name="phase_waiting_code">Waiting for the pairing code</string>
+    <string name="phase_rejected">The PC does not recognize this phone. Pair again.</string>
+    <string name="phase_idle">Not paired</string>
+    <string name="label_pc">PC</string>
+    <string name="label_route">Route</string>
+    <string name="label_device_id">Device ID</string>
+    <string name="label_device_name">Device name</string>
+    <string name="agent_version_label">App version</string>
+    <string name="label_ready">Permissions</string>
+    <string name="ready_a11y">Accessibility</string>
+    <string name="ready_ime">Keyboard</string>
+    <string name="ready_notif">Notification access</string>
+    <string name="ready_capture">Screen capture</string>
+    <string name="ready_vpn">VPN</string>
+    <string name="btn_reconnect">Reconnect</string>
+    <string name="btn_unpair">Unpair</string>
+    <string name="unpair_confirm">Unpair from %1$s? To use this phone again, you will need to pair it again.</string>
+    <string name="notif_filter_title">Notifications sent to the PC</string>
+    <string name="notif_filter_empty">None. Notifications stay on this phone.</string>
+    <string name="btn_choose_apps">Choose apps</string>
+    <string name="search_apps">Search apps</string>
+    <string name="btn_done">Done</string>
+    <string name="update_available">Version %1$s is available.</string>
+    <string name="btn_release_page">Open release page</string>
+
+    <string name="channel_link">Connection</string>
+    <string name="channel_updates">Updates</string>
+    <string name="notif_connected">Connected to %1$s (%2$s)</string>
+    <string name="notif_connecting">Connecting to the PC</string>
+    <string name="notif_waiting_code">Pairing code %1$s</string>
+    <string name="notif_rejected">The PC no longer recognizes this phone</string>
+    <string name="notif_not_paired">Not paired</string>
+    <string name="notif_offline">Offline, will retry</string>
+    <string name="update_title">Droidline %1$s is available</string>
+    <string name="update_text">Tap to open the release page.</string>
+    <string name="pair_link_title">Pair with %1$s?</string>
+    <string name="pair_link_warning">Continue only if you just ran droidline pair on your own PC. Whoever controls that PC can control this phone.</string>
+    <string name="btn_pair_confirm">Pair</string>
+</resources>

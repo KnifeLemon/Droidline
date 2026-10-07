@@ -1,0 +1,111 @@
+{
+  "comment": "Deterministic keys for tests only. Private keys are 32-byte big-endian scalars, public keys are uncompressed P-256 points, base64url without padding.",
+  "keys": {
+    "phone_static": {
+      "d": "8bf52fdf679746bed5c360faabade18348c82763802bf96e6e0c4559470b1ec8",
+      "pub": "BLMs8F4Nx2JuThDvX-4sjEaoq62JxCcJwZ09uz5ZtsKWly0J6NQtk_xLRZ7PL9ix5lK5y8EXu_rgQCnaCyoGRIk"
+    },
+    "server_static": {
+      "d": "961dcc9360ea05800a0e76c414ba830e612661841ddce84c7e13c0f4aaa5e807",
+      "pub": "BMhFSjSLWcDh0LA8svujwvJ3vC56i9IYPH4b97qbWcV4ttNMssslEorivkznbM0T7VCyTUoIgLPttJwwb5VgLqw"
+    },
+    "phone_eph": {
+      "d": "0972a69e84b538b4d37aeecd9e9cb23d381cebd428a017baa75bca4b372122b8",
+      "pub": "BM3wuSdmSXRuupZiun6zn6aSxqPJIrBeQLJcks-jAAvyOCBWA03HXKacPQA-M4G2vdqfYpunA-9KSezeZxeq3Qk"
+    },
+    "server_eph": {
+      "d": "3eb63cac34d871e054b85e5fa95b55a1ae01042fa05b0f0cbe6c794ac4ec9e07",
+      "pub": "BD7IO6GpxZPlUEqgVbOfsL0CMWu7bFhqt58GxgCjKZ2KxdyUF3SuzcRAdqzoT7js2KLeKtlyyysBXdg8xVynjiY"
+    }
+  },
+  "handshakes": [
+    {
+      "mode": "auth",
+      "line1": "{\"hs\":1,\"proto\":1,\"mode\":\"auth\",\"device\":\"a1b2c3d4\",\"eph\":\"BM3wuSdmSXRuupZiun6zn6aSxqPJIrBeQLJcks-jAAvyOCBWA03HXKacPQA-M4G2vdqfYpunA-9KSezeZxeq3Qk\",\"nonce\":\"AAECAwQFBgcICQoLDA0ODw\"}",
+      "line2": "{\"hs\":1,\"proto\":1,\"server\":\"k3j9d0a2mq\",\"status\":\"ok\",\"eph\":\"BD7IO6GpxZPlUEqgVbOfsL0CMWu7bFhqt58GxgCjKZ2KxdyUF3SuzcRAdqzoT7js2KLeKtlyyysBXdg8xVynjiY\",\"nonce\":\"EBESExQVFhcYGRobHB0eHw\"}",
+      "th": "514078a7843ad96a9f6f4c43eda54c76aab539fb9b9e4f700abc1d46b84d22fe",
+      "ikm": "cf12417328500bfe8f3ffac3cd71e761368567929409b92488341949643541263c91cf270a1be669d7a7ab48b8cdded1554ac184e8a27404e25be1bd5aa9c526",
+      "k_up": "00bb8015fec7c72ec4ecab35d4ef49f8501df2c62a18fc9c71247d6253ae062e",
+      "k_dn": "9d2e2fd1171b512cdc018a379e0853625f548e931b5640cf0184a29d54192924",
+      "sas": "845230",
+      "token": null,
+      "up_seq0": {
+        "plaintext": "{\"event\":\"hello\",\"device\":\"a1b2c3d4\",\"boot\":\"7f3a9c\",\"agent\":\"0.1.0\"}",
+        "envelope": {
+          "seq": 0,
+          "blob": "Guv5VrDppIhhuou_GKd7V-4I0q7N1YzU_E_1MIch-_77ih6PHmswzs3xV6d6lCKgCIFsQbzMgb1B3vcKB9lWXh4KrFFuvVl_iIWD3m--wO3N1nuJqA"
+        }
+      },
+      "dn_seq1": {
+        "plaintext": "{\"event\":\"welcome\",\"server\":\"k3j9d0a2mq\",\"ack\":0}",
+        "envelope": {
+          "seq": 1,
+          "blob": "Sm4wIZWGmDM_7kkEpgzeHCApD6BdcAN_IhMEjMj8CkyKls_gl2nTF8z95BTFDkzN3b_BfSHaub28AzVOtuHHrXM"
+        }
+      }
+    },
+    {
+      "mode": "pair_code",
+      "line1": "{\"hs\":1,\"proto\":1,\"mode\":\"pair_code\",\"device\":\"a1b2c3d4\",\"eph\":\"BM3wuSdmSXRuupZiun6zn6aSxqPJIrBeQLJcks-jAAvyOCBWA03HXKacPQA-M4G2vdqfYpunA-9KSezeZxeq3Qk\",\"nonce\":\"AAECAwQFBgcICQoLDA0ODw\",\"pub\":\"BLMs8F4Nx2JuThDvX-4sjEaoq62JxCcJwZ09uz5ZtsKWly0J6NQtk_xLRZ7PL9ix5lK5y8EXu_rgQCnaCyoGRIk\"}",
+      "line2": "{\"hs\":1,\"proto\":1,\"server\":\"k3j9d0a2mq\",\"status\":\"ok\",\"eph\":\"BD7IO6GpxZPlUEqgVbOfsL0CMWu7bFhqt58GxgCjKZ2KxdyUF3SuzcRAdqzoT7js2KLeKtlyyysBXdg8xVynjiY\",\"nonce\":\"EBESExQVFhcYGRobHB0eHw\"}",
+      "th": "123e050b106c65419f8835c51bbf3131dbc2a4a80620ddcb8877cc28fca916b8",
+      "ikm": "cf12417328500bfe8f3ffac3cd71e761368567929409b92488341949643541263c91cf270a1be669d7a7ab48b8cdded1554ac184e8a27404e25be1bd5aa9c526",
+      "k_up": "3750f7f34af067d88f519ae7f69429cd8d6440b640eb0f8ba4ac4786e2d087b7",
+      "k_dn": "00814c53fd751beeb43017eb21b82275fa0c5d0106eadf20776294979f823366",
+      "sas": "099291",
+      "token": null,
+      "up_seq0": {
+        "plaintext": "{\"event\":\"hello\",\"device\":\"a1b2c3d4\",\"boot\":\"7f3a9c\",\"agent\":\"0.1.0\"}",
+        "envelope": {
+          "seq": 0,
+          "blob": "ew2fcMnNMZzW3uYspuW5M2i2R6x5uBPoBwhIfp0JZijUTNs4e3dKGHmoC2N_qCpc7gcCGsqZTGCzdZlhEa6hFZ4voZMMbEnKKLxQJBJc5eY0-tp2yA"
+        }
+      },
+      "dn_seq1": {
+        "plaintext": "{\"event\":\"welcome\",\"server\":\"k3j9d0a2mq\",\"ack\":0}",
+        "envelope": {
+          "seq": 1,
+          "blob": "SIs_e5z4nvcgaJDkNnR6suPWuVKSxJxjb202XJi4M5KANN1lX8LSs83Gb8cu13XRy2QHuP734SqsGBWqnPHQQeU"
+        }
+      }
+    },
+    {
+      "mode": "pair_qr",
+      "line1": "{\"hs\":1,\"proto\":1,\"mode\":\"pair_qr\",\"device\":\"a1b2c3d4\",\"eph\":\"BM3wuSdmSXRuupZiun6zn6aSxqPJIrBeQLJcks-jAAvyOCBWA03HXKacPQA-M4G2vdqfYpunA-9KSezeZxeq3Qk\",\"nonce\":\"AAECAwQFBgcICQoLDA0ODw\",\"pub\":\"BLMs8F4Nx2JuThDvX-4sjEaoq62JxCcJwZ09uz5ZtsKWly0J6NQtk_xLRZ7PL9ix5lK5y8EXu_rgQCnaCyoGRIk\",\"tid\":\"t0k3n1d0\"}",
+      "line2": "{\"hs\":1,\"proto\":1,\"server\":\"k3j9d0a2mq\",\"status\":\"ok\",\"eph\":\"BD7IO6GpxZPlUEqgVbOfsL0CMWu7bFhqt58GxgCjKZ2KxdyUF3SuzcRAdqzoT7js2KLeKtlyyysBXdg8xVynjiY\",\"nonce\":\"EBESExQVFhcYGRobHB0eHw\"}",
+      "th": "ad6effc853dc66afdc4847821e78b1c9186c530885a07113ea04c38b8126ab25",
+      "ikm": "cf12417328500bfe8f3ffac3cd71e761368567929409b92488341949643541263c91cf270a1be669d7a7ab48b8cdded1554ac184e8a27404e25be1bd5aa9c5266465666768696a6b6c6d6e6f70717273",
+      "k_up": "c5dc4d75e6f98162783b6f34cb98c9078501fcffaecbf5156ba702f45625017b",
+      "k_dn": "184baa59eb2ab62abf40da75a16638a7671bea97f21af581bbc3d4e4f23de978",
+      "sas": "072962",
+      "token": "ZGVmZ2hpamtsbW5vcHFycw",
+      "up_seq0": {
+        "plaintext": "{\"event\":\"hello\",\"device\":\"a1b2c3d4\",\"boot\":\"7f3a9c\",\"agent\":\"0.1.0\"}",
+        "envelope": {
+          "seq": 0,
+          "blob": "XdRywGIMNXqbXEX89QC8JOBJXEV-BchzrB3jIYZ9L-eA5vEKMT3PXtP60g3Ri7vlTn7eNwKSwzyXO5po1apbAXe4t7uECSwinKnWQpMTM3aAsnGS6g"
+        }
+      },
+      "dn_seq1": {
+        "plaintext": "{\"event\":\"welcome\",\"server\":\"k3j9d0a2mq\",\"ack\":0}",
+        "envelope": {
+          "seq": 1,
+          "blob": "x11wDjrsqkRR-MSRcCcsSblbp5GBzE-AKitLnvFdg9ki55Nzz6yFzJhv-XiInYE6YGRGqzZGfsB_gHWE1nIDTtA"
+        }
+      }
+    }
+  ],
+  "relay": {
+    "relay_token": "relay-test-token",
+    "device_ticket": {
+      "server": "k3j9d0a2mq",
+      "device": "a1b2c3d4",
+      "ticket": "3IPcC0TsSd93HmMuDkrNBBSU42pPgqIWuwwE5CG3bRs"
+    },
+    "enroll_ticket": {
+      "server": "k3j9d0a2mq",
+      "expiry": 1791360000,
+      "ticket": "SR1R0U3IKGUf3JnJ0qpApDFpnKJnhLqqWNlmPCtv1zI"
+    }
+  }
+}

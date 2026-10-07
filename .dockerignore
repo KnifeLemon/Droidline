@@ -1,0 +1,6 @@
+agent
+sdk
+relay/worker
+examples
+docs
+**/node_modules

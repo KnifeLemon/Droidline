@@ -1,0 +1,36 @@
+# Go
+/dist/
+*.exe
+*.test
+/droidline
+/droidline-relay
+/droidline-fakephone
+fakephone.json
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Android
+agent/local.properties
+agent/.gradle/
+agent/build/
+agent/app/build/
+*.jks
+*.keystore
+
+# Node and Python
+node_modules/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.venv/
+examples/screen.json
+examples/screen.png
+examples/package-lock.json
+
+# Local tooling
+.claude/

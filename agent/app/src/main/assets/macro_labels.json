@@ -1,0 +1,173 @@
+{
+  "comment": "Targets for settings macros. ids match first and are trusted; generic_ids match only when the node or a descendant also shows one of the labels; labels match text, then content-desc, ignoring case. Labels from every language are tried on every phone.",
+  "steps": {
+    "force_stop": {
+      "ids": [],
+      "generic_ids": [
+        "com.android.settings:id/button3",
+        "com.android.settings:id/right_button",
+        "com.android.settings:id/force_stop_button"
+      ],
+      "labels": {
+        "en": [
+          "Force stop",
+          "Force Stop"
+        ],
+        "ko": [
+          "강제 중지",
+          "강제 종료"
+        ],
+        "zh": [
+          "强行停止",
+          "结束运行",
+          "强制停止"
+        ]
+      }
+    },
+    "confirm": {
+      "ids": [
+        "android:id/button1"
+      ],
+      "generic_ids": [],
+      "labels": {
+        "en": [
+          "OK",
+          "Force stop",
+          "Delete",
+          "Clear",
+          "Turn off"
+        ],
+        "ko": [
+          "확인",
+          "강제 중지",
+          "삭제",
+          "지우기",
+          "끄기"
+        ],
+        "zh": [
+          "确定",
+          "强行停止",
+          "删除",
+          "清除",
+          "关闭"
+        ]
+      }
+    },
+    "storage": {
+      "ids": [],
+      "generic_ids": [],
+      "labels": {
+        "en": [
+          "Storage & cache",
+          "Storage and cache",
+          "Storage"
+        ],
+        "ko": [
+          "저장공간 및 캐시",
+          "저장공간"
+        ],
+        "zh": [
+          "存储和缓存",
+          "存储空间",
+          "存储"
+        ]
+      }
+    },
+    "clear_storage": {
+      "ids": [],
+      "generic_ids": [
+        "com.android.settings:id/button1",
+        "com.android.settings:id/left_button"
+      ],
+      "labels": {
+        "en": [
+          "Clear storage",
+          "Clear data"
+        ],
+        "ko": [
+          "데이터 삭제",
+          "저장공간 지우기"
+        ],
+        "zh": [
+          "清除存储空间",
+          "清除数据"
+        ]
+      }
+    },
+    "airplane": {
+      "ids": [],
+      "generic_ids": [],
+      "labels": {
+        "en": [
+          "Airplane mode",
+          "Aeroplane mode",
+          "Flight mode"
+        ],
+        "ko": [
+          "비행기 탑재 모드",
+          "비행기 모드"
+        ],
+        "zh": [
+          "飞行模式"
+        ]
+      }
+    },
+    "wifi": {
+      "ids": [
+        "com.android.systemui:id/wifi_toggle"
+      ],
+      "generic_ids": [
+        "com.android.settings:id/switch_text",
+        "com.android.settings:id/switch_widget"
+      ],
+      "labels": {
+        "en": [
+          "Use Wi-Fi",
+          "Wi-Fi"
+        ],
+        "ko": [
+          "Wi-Fi 사용",
+          "Wi-Fi"
+        ],
+        "zh": [
+          "使用 WLAN",
+          "WLAN"
+        ]
+      }
+    },
+    "mobile_data": {
+      "ids": [
+        "com.android.systemui:id/mobile_toggle"
+      ],
+      "generic_ids": [],
+      "labels": {
+        "en": [
+          "Mobile data"
+        ],
+        "ko": [
+          "모바일 데이터"
+        ],
+        "zh": [
+          "移动数据"
+        ]
+      }
+    },
+    "manage_space": {
+      "ids": [],
+      "generic_ids": [
+        "com.android.settings:id/button1"
+      ],
+      "labels": {
+        "en": [
+          "Manage space"
+        ],
+        "ko": [
+          "공간 관리"
+        ],
+        "zh": [
+          "管理空间"
+        ]
+      }
+    }
+  }
+}

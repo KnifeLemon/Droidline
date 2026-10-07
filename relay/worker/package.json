@@ -1,0 +1,27 @@
+{
+  "name": "droidline-relay-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Droidline relay for Cloudflare Workers: pairs a PC and its phones over WebSocket and forwards encrypted lines.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "cloudflare": {
+    "bindings": {
+      "RELAY_TOKEN": {
+        "description": "Shared secret between this relay and `droidline serve`. Use 32 random bytes, for example the output of `node -e \"console.log(require('crypto').randomBytes(32).toString('base64url'))\"`."
+      }
+    }
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261007.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3",
+    "wrangler": "^4.148.0"
+  }
+}

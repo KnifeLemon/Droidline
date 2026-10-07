@@ -1,0 +1,40 @@
+{
+  "name": "droidline",
+  "version": "0.1.0",
+  "description": "Control Android phones from Node.js with one-line commands, without ADB.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.test.json && node --test build-test/test/client.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "android",
+    "automation",
+    "accessibility",
+    "testing",
+    "droidline"
+  ],
+  "homepage": "https://droidline.dev",
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "typescript": "^5.9.3"
+  }
+}
