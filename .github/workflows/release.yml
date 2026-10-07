@@ -55,6 +55,7 @@ jobs:
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
       - name: build signed apk
+        id: build
         working-directory: agent
         env:
           DROIDLINE_KEYSTORE_BASE64: ${{ secrets.DROIDLINE_KEYSTORE_BASE64 }}
@@ -62,9 +63,11 @@ jobs:
           DROIDLINE_KEY_ALIAS: ${{ secrets.DROIDLINE_KEY_ALIAS }}
           DROIDLINE_KEY_PASSWORD: ${{ secrets.DROIDLINE_KEY_PASSWORD }}
         run: |
+          # Without the signing secrets there is no APK; the release still gets the binaries.
           if [ -z "$DROIDLINE_KEYSTORE_BASE64" ]; then
-            echo "Set the DROIDLINE_KEYSTORE_* secrets so the APK can be signed."
-            exit 1
+            echo "::warning::DROIDLINE_KEYSTORE_* secrets are not set; skipping the APK. Add them and re-run this job."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           echo "$DROIDLINE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           export DROIDLINE_KEYSTORE="$RUNNER_TEMP/release.jks"
@@ -73,13 +76,17 @@ jobs:
           ./gradlew assembleRelease
           mkdir -p ../dist
           cp app/build/outputs/apk/release/app-release.apk ../dist/droidline-agent.apk
+          echo "signed=true" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
+        if: steps.build.outputs.signed == 'true'
         with:
           name: apk
           path: dist/droidline-agent.apk
 
   github-release:
     needs: [binaries, apk]
+    # Runs whenever the binaries built, so a missing APK can be added by re-running apk and this job.
+    if: ${{ !cancelled() && needs.binaries.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -91,9 +98,16 @@ jobs:
       - name: draft release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --draft
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --draft
+          fi
 
   pypi:
+    # Set the repository variable PYPI_PUBLISH=true after adding this repo as a trusted publisher on PyPI.
+    if: vars.PYPI_PUBLISH == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     steps:
@@ -117,6 +131,10 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::warning::NPM_TOKEN is not set; skipping npm publish."
+            exit 0
+          fi
           npm ci
           npm publish --provenance --access public
 
@@ -136,6 +154,10 @@ jobs:
           file: relay/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=Droidline relay: forwards encrypted lines between a PC and its phones
+            org.opencontainers.image.licenses=MIT
           tags: |
             ghcr.io/knifelemon/droidline-relay:${{ github.ref_name }}
             ghcr.io/knifelemon/droidline-relay:latest

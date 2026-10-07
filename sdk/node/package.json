@@ -33,6 +33,14 @@
     "droidline"
   ],
   "homepage": "https://droidline.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KnifeLemon/Droidline.git",
+    "directory": "sdk/node"
+  },
+  "bugs": {
+    "url": "https://github.com/KnifeLemon/Droidline/issues"
+  },
   "devDependencies": {
     "@types/node": "^18.19.0",
     "typescript": "^5.9.3"

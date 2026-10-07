@@ -24,6 +24,8 @@ dependencies = []
 [project.urls]
 Homepage = "https://droidline.dev"
 Documentation = "https://droidline.dev/docs"
+Repository = "https://github.com/KnifeLemon/Droidline"
+Issues = "https://github.com/KnifeLemon/Droidline/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/droidline"]
