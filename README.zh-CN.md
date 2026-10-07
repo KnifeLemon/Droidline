@@ -1,136 +1,240 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/droidline-logo-dark.png">
-    <img src="docs/assets/droidline-logo.png" alt="Droidline" width="300">
-  </picture>
+  <a href="https://droidline.dev/zh/"><img src="docs/media/banner-zh.jpg" alt="Droidline：安卓手机，一行一行地控制。" width="100%"></a>
 </p>
 
-# Droidline
+<p align="center">
+  <b>用你的代码控制真实的安卓手机，每个操作一行。</b><br>
+  Python、Node.js、命令行、HTTP 或 AI 智能体都可以。无需 ADB、USB 数据线或 root。
+</p>
 
-[English](README.md) · [한국어](README.ko.md) · **简体中文**
+<p align="center">
+  <a href="https://droidline.dev/zh/"><b>网站</b></a> ·
+  <a href="https://droidline.dev/zh/docs/"><b>文档</b></a> ·
+  <a href="https://github.com/KnifeLemon/Droidline/releases/latest"><b>下载</b></a> ·
+  <a href="#快速开始">快速开始</a> ·
+  <a href="#在你的语言中使用">各语言用法</a> ·
+  <a href="#文档">指南</a>
+</p>
 
-用任何编程语言控制安卓手机，每个操作一行代码。不需要 ADB，不需要 USB 数据线，不需要 root。
+<p align="center">
+  <a href="https://github.com/KnifeLemon/Droidline/actions/workflows/ci.yml"><img src="https://github.com/KnifeLemon/Droidline/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/KnifeLemon/Droidline/releases/latest"><img src="https://img.shields.io/github/v/release/KnifeLemon/Droidline?color=FF6B21&label=release" alt="最新版本"></a>
+  <img src="https://img.shields.io/badge/Android-9%2B-15803D" alt="Android 9 及以上">
+  <img src="https://img.shields.io/badge/PC-Windows%20%7C%20macOS%20%7C%20Linux-1C202B" alt="Windows、macOS 和 Linux">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-B53A07" alt="MIT 许可证"></a>
+</p>
+
+<p align="center"><a href="README.md">English</a> · <a href="README.ko.md">한국어</a> · <b>简体中文</b></p>
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><b>无需 ADB，无需数据线</b><br>在手机上装一个应用，开启权限，用二维码配对即可。不需要开发者选项、USB 调试或 root。</td>
+    <td width="33%" valign="top"><b>处处是同一条命令</b><br><code>touch</code> 在 Python、Node.js、CLI、HTTP 和 MCP 工具中都叫 <code>touch</code>，全部由同一份规范生成。</td>
+    <td width="33%" valign="top"><b>手机在哪里都能用</b><br>手机主动连接你的电脑，所以在同一 Wi-Fi 下能用，通过隧道或你自己运行的中继，在移动数据下也能用。每一行都端到端加密。</td>
+  </tr>
+</table>
+
+## 实际效果
+
+<p align="center">
+  <a href="https://droidline.dev/zh/"><img src="docs/media/demo-zh.webp" alt="脚本向手机发送六行：启动演示应用、关闭广告、输入邮箱、勾选保持登录、点击登录、等待主界面。每一行都收到一条说明点击如何完成的回复，手机界面随之变化。" width="720"></a><br>
+  <sub>在 <a href="https://droidline.dev/zh/">droidline.dev</a> 上可以直接在浏览器中运行同一个演示，并在模拟界面上选择元素</sub>
+</p>
+
+## 快速开始
+
+你需要一台电脑（Windows、macOS 或 Linux）和一部 Android 9 及以上的安卓手机。第一次试用时，请让两者连接同一个 Wi-Fi。[安装指南](https://droidline.dev/zh/docs/install/)会配合截图逐步说明。
+
+1. **在电脑上运行服务器。** 从 [Releases](https://github.com/KnifeLemon/Droidline/releases/latest) 下载适合你系统的 `droidline` 压缩包，把 `droidline` 放到 `PATH` 中，然后启动它，并保持运行。
+
+   ```bash
+   droidline serve
+   ```
+
+2. **在手机上安装应用。** 从同一个发布页面下载 `droidline-agent.apk` 并打开。在应用的 **设置** 标签页中开启无障碍服务、Droidline 键盘、通知，并把电池优化设为不受限制。Android 13 及以上需要先为该应用 **允许受限制的设置**，应用会告诉你位置。
+
+3. **配对。** 在电脑上运行下面的命令，然后在应用的 **配对** 标签页中扫描二维码：
+
+   ```bash
+   droidline pair
+   ```
+
+   没有摄像头？在应用中点 **在此 Wi-Fi 下配对**，再输入应用显示的 6 位代码：`droidline pair 482913`。
+
+4. **发送命令。**
+
+   ```bash
+   droidline launch com.android.settings
+   droidline touch text "网络和互联网"
+   ```
+
+手边没有手机也没关系。每个版本都附带 `droidline-fakephone`，它能模拟一部装有小型演示应用的手机。[第一个脚本教程](https://droidline.dev/zh/docs/tutorial/) 会用它从头到尾写出一个登录脚本。
+
+## 在你的语言中使用
+
+所有接口都与 `localhost:8780` 上的 `droidline serve` 通信，命令名称也完全相同。
+
+**Python**（`pip install droidline`，Python 3.9 及以上）
 
 ```python
 from droidline import connect
 
-d = connect()                                   # 已与这台电脑配对的手机
-d.launch("com.tencent.mm")
-d.dump("screen.json")                           # 在这里查看 id 和文字
-d.touchById("com.tencent.mm:id/login")
-d.input("id", "com.tencent.mm:id/account", "knife")
-d.sendkey("enter")
-if d.exists("text", "关闭广告"):
-    d.touch("text", "关闭广告")
-d.tap(540, 1200)                                # 只有 tap 使用坐标
-d.batch([("airplane", True), ("sleep", 3000), ("airplane", False)])  # 更换 IP
+d = connect()                                  # 与这台电脑配对的手机
+d.launch("dev.droidline.demo")
+if d.exists("text", "Close ad"):               # 条件判断既不等待也不会失败
+    d.touch("text", "Close ad")
+d.input("id", "email", "knife")                # 最多等待元素出现 10 秒
+d.touch("text", "Log in")
+print(d.get_text("id", "greeting"))
 ```
 
-网站与文档：<https://droidline.dev/zh/>
+**Node.js 与 TypeScript**（`npm install droidline`，Node.js 18 及以上）
 
-## 工作原理
+```js
+import { connect } from "droidline";
 
+const d = await connect();
+await d.launch("dev.droidline.demo");
+await d.input("id", "email", "knife");
+await d.touch("text", "Log in", { timeout: 15 });
+console.log(await d.getText("id", "greeting"));
 ```
-你的代码 ── SDK / CLI / MCP / curl ──► droidline serve（电脑）◄── Droidline 应用（手机）
-               localhost:8780                                手机主动连接
-```
 
-* 手机上只安装一个应用，包含无障碍服务、一个输入法，以及按需使用的按应用 VPN。手机主动连接电脑，所以手机上不需要开放端口，也不需要 `adb forward`。
-* 电脑上运行 `droidline serve`。你的代码向 `localhost:8780` 每次发送一行命令。
-* 等待、重试和坐标回退都由手机和服务器完成。`touch` 最多等待 10 秒让目标出现；如果节点拒绝点击，就改为点击它 bounds 的中心。
-* SDK 函数、通信命令、CLI 子命令和 MCP 工具名称一一对应，全部由 [`spec/commands.json`](spec/commands.json) 生成。
-
-手机可以在同一 Wi-Fi 下，也可以通过端口转发、隧道，或经你自己部署的中继使用移动数据连接。握手之后的每一行都经过端到端加密，中继和隧道只能看到密文。详细规范见 [`spec/PROTOCOL.md`](spec/PROTOCOL.md)。
-
-## 快速开始
-
-1. **电脑端服务器。** 从 [Releases](https://github.com/KnifeLemon/Droidline/releases) 下载对应系统的 `droidline`，或用 Go 1.26 以上版本构建：
-   ```bash
-   go install github.com/KnifeLemon/Droidline/server/cmd/droidline@latest
-   ```
-   运行后保持开启：
-   ```bash
-   droidline serve
-   ```
-2. **手机应用。** 从 [Releases](https://github.com/KnifeLemon/Droidline/releases) 安装 `droidline-agent.apk`。应用不上架 Google Play。打开应用后按清单完成设置：无障碍、Droidline 输入法、通知权限、电池优化例外。Android 13 及以上版本中，旁加载的应用需要先在“应用信息”里选择“允许受限制的设置”，才能开启无障碍，应用内会指引位置。
-3. **配对。** 在电脑上运行：
-   ```bash
-   droidline pair
-   ```
-   用应用扫描二维码。没有摄像头时，在应用中点“在此 Wi-Fi 下配对”，再把手机上显示的 6 位代码输入电脑：`droidline pair 482913`。
-4. **第一条命令。**
-   ```bash
-   droidline touch text "设置"
-   ```
-
-手边没有手机？`droidline-fakephone` 会模拟一台带演示应用的手机，可以先试用 SDK、CLI 和 MCP：
+**命令行**（随服务器附带）
 
 ```bash
-go install github.com/KnifeLemon/Droidline/server/cmd/droidline-fakephone@latest
-droidline-fakephone            # 显示代码后运行 droidline pair <代码>
-droidline launch dev.droidline.demo
+droidline touch text "Log in"
+droidline which text="Log in" id=main_tab --timeout 15
+droidline screenshot shot.png
 ```
 
-## 在各语言中使用
+**HTTP**（任何语言、任何工具）
 
-| 接口 | 安装 | 示例 |
-|---|---|---|
-| Python | `pip install droidline` | `connect().touch("text", "确定")` |
-| Node.js / TypeScript | `npm install droidline` | `await (await connect()).touch("text", "确定")` |
-| CLI | 随服务器提供 | `droidline touch text 确定` |
-| HTTP | 无需安装 | `curl -X POST localhost:8780/devices/_/touch -H 'content-type: application/json' -d '{"by":"text","value":"确定"}'` |
-| MCP | 随服务器提供 | `droidline mcp` |
-| 其他任何语言 | 一个 TCP 套接字 | 发送 `{"id":1,"cmd":"touch","by":"text","value":"确定"}`，再读取一行 |
+```bash
+curl -s -X POST localhost:8780/devices/_/touch \
+  -H 'content-type: application/json' -d '{"by":"text","value":"Log in"}'
+```
 
-MCP 客户端配置（Claude Desktop、Claude Code、Cursor 等）：
+**通过 MCP 供 AI 智能体使用**（Claude、Cursor、VS Code 等）
 
 ```json
 { "mcpServers": { "droidline": { "command": "droidline", "args": ["mcp"] } } }
 ```
 
-## 按元素操作，而不是按像素
+在 Claude Code 中：`claude mcp add droidline -- droidline mcp`。其他语言可以打开 TCP 套接字，每条命令发送一行 JSON。Go、Java、C# 和 PHP 示例见 [其他语言](https://droidline.dev/zh/docs/other-languages/)。
 
-`dump()` 以树的形式返回当前界面。每个节点都有 `text`、`id`、`desc`、`class`、`bounds`，这些名称就是第一个参数：
+## 功能
 
-| `by` | 匹配 | 简写 |
+- **按元素操作，而不是按像素。** `dump()` 以树的形式返回界面，每个元素都有 `text`、`id` 和 `desc`。命令接收字段和值：`touch("id", "login")`。元素拒绝点击时，Droidline 会自动点击它的父元素或 bounds 的中心。
+- **内置等待。** `touch`、`input` 和 `wait` 会等待元素出现，默认 10 秒。`exists`、`checked`、`which` 等条件判断立即作答，元素不存在时也不会抛出异常。
+- **清楚的错误。** 每个失败都有错误码、中文、英文或韩文的消息，以及是否值得重试的标记：`NOT_FOUND: 在 10 秒内未找到 text 'Log in'。当前界面：com.example / .MainActivity`。
+- **一整架手机。** 一台电脑控制多部手机。发给同一部手机的命令按顺序执行，不同手机之间并行执行，每部手机都可以起你想要的名字。
+- **按应用代理。** 通过本地 VPN 让指定应用走 socks5 或 http 上游，每部手机一个上游，无需 root。
+- **在电脑上接收通知。** 等待一条、响应每一条、回复、打开或清除，或者转发到带签名的 Webhook。
+- **新的移动 IP。** `batch` 在手机离线时也会继续在手机上运行，所以开启飞行模式、等待、关闭可以作为一条命令完成。
+- **不会执行两次。** 移动数据断开后重连的手机会从中断处继续；执行中的命令由手机缓存的回复作答，不会再执行一次。
+- **简体中文、English、한국어**：应用、错误消息和文档都支持。
+
+## 截图
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/media/app-setup.png" alt="所有权限都已开启的设置标签页"></td>
+    <td width="33%"><img src="docs/media/app-pair.png" alt="与电脑配对后的配对标签页"></td>
+    <td width="33%"><img src="docs/media/app-status.png" alt="显示线路和权限的状态标签页"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>设置：每项权限都有直达设置界面的按钮</sub></td>
+    <td align="center"><sub>配对：扫描二维码或使用 6 位代码</sub></td>
+    <td align="center"><sub>状态：连接、线路和权限</sub></td>
+  </tr>
+</table>
+
+<sub>截图拍摄于设置为英文的手机。应用会跟随手机语言显示简体中文。</sub>
+
+## 手机在哪里都能连接
+
+手机总是主动发起连接，所以手机上不需要开放端口。选择适合你网络的线路；手机会按顺序尝试，并在可能时切回 Wi-Fi。
+
+| 线路 | 你需要 | 工作方式 |
 |---|---|---|
-| `text` | text 完全匹配 | `touchByText` |
-| `textContains` | text 部分匹配 | |
-| `id` | resource-id；只写 `"login"` 也匹配 `"<包名>:id/login"` | `touchById` |
-| `desc` | content-desc 完全匹配 | `touchByDesc` |
-| `descContains` | content-desc 部分匹配 | |
-| `class` | 类名，通常与 `nth` 一起使用 | |
+| 同一 Wi-Fi | 无需设置 | 手机通过 UDP 广播找到电脑并直接连接。 |
+| 端口转发 | 转发一个端口 | 手机通过 TLS 连接你的公网地址，并用电脑的证书核对身份。 |
+| 隧道 | cloudflared、ngrok 等 | 电脑保持隧道开启，手机通过隧道地址接入。 |
+| 自建中继 | Cloudflare Workers 或 VPS | 电脑和手机都向你部署的中继连接，中继只转发它读不懂的数据行。 |
 
-`exists`、`which`、`checked`、`get_text`、`in_app` 等判断命令会立即返回，目标不存在时也不会报错，可以直接放进 `if`。
+两行握手之后，每一行都用只有你的电脑和手机持有的密钥（P-256 与 AES-256-GCM）加密，所以隧道或中继只能转发密文。[远程连接指南](https://droidline.dev/zh/docs/remote/) 逐一说明每种线路。
 
 ## 做不到的事
 
-Droidline 只使用普通应用能获得的权限，因此有些事做不到，最好提前知道：
+Droidline 只使用普通应用能获得的权限，因此有些事做不到，最好在开始前了解：
 
-* 无法打开其他应用未导出的界面。`launch` 会改为打开该应用的启动界面。
-* 强行停止、清除数据，以及移动数据、Wi-Fi、飞行模式的开关，是通过打开系统设置并点击按钮完成的。每次需要几秒，按钮文字因厂商而异。参考机型为三星和 Pixel。
-* 游戏、部分 WebView 和自定义界面没有无障碍节点。这类界面请使用 `tap` 坐标和 `color(x, y)`。
-* Android 15 及以上版本会对应用隐藏通知中的验证码。`wait_notification` 能告诉你验证码到了，号码需要打开应用后用 `get_text` 读取。
-* 按应用代理需要 Android 10 及以上，且一台手机同时只能开启一个 VPN。忽略系统代理设置的应用会断网，而不是绕过代理。
-* 用 `sendkey` 发送键码或文字，以及读取剪贴板，需要 Droidline 输入法为当前输入法。
+- 无法打开其他应用未导出的界面。`launch` 会改为打开启动界面。
+- 无法解锁 PIN、图案或密码锁屏。
+- 强行停止、清除数据和网络开关是通过在系统设置中代你点击按钮完成的，需要几秒钟，按钮文字也因品牌而异。
+- 游戏和部分自绘界面的应用不提供元素。这类界面请用 `tap` 坐标和 `color(x, y)`。
+- Android 15 及以上会对应用隐藏通知中的验证码。你能知道验证码已到达，号码需要在应用界面中读取。
 
-## 仓库结构
+[完整列表](https://droidline.dev/zh/docs/limitations/) 逐项说明。
+
+## 文档
+
+| 我想要…… | 从这里开始 |
+|---|---|
+| 一步步完成安装 | [安装](https://droidline.dev/zh/docs/install/) |
+| 不用手机写出第一个脚本 | [你的第一个脚本](https://droidline.dev/zh/docs/tutorial/) |
+| 用我的语言 | [Python](https://droidline.dev/zh/docs/python/) · [Node.js](https://droidline.dev/zh/docs/nodejs/) · [CLI](https://droidline.dev/zh/docs/cli/) · [HTTP](https://droidline.dev/zh/docs/http/) · [AI 智能体](https://droidline.dev/zh/docs/ai-agents/) |
+| 在界面上找到合适的元素 | [查找元素](https://droidline.dev/zh/docs/finding-elements/) |
+| 直接套用可用的做法 | [常用示例](https://droidline.dev/zh/docs/recipes/) |
+| 查一条命令 | [命令参考](https://droidline.dev/zh/docs/commands/) |
+| 连接使用移动数据的手机 | [远程连接](https://droidline.dev/zh/docs/remote/) |
+| 解决遇到的问题 | [故障排查](https://droidline.dev/zh/docs/troubleshooting/) |
+| 了解通信格式 | [`spec/PROTOCOL.md`](spec/PROTOCOL.md) |
+
+## 从源码构建
+
+需要：Go 1.26 及以上、Node.js 22、Python 3.9 及以上。构建应用还需要 JDK 17 及以上和 Android SDK（Android Studio 自带的 JDK 即可）。
+
+```bash
+git clone https://github.com/KnifeLemon/Droidline.git
+cd Droidline
+go build ./server/cmd/...              # droidline、droidline-relay、droidline-fakephone
+go test ./spec/ ./server/...
+node scripts/gen.mjs --check           # 检查 SDK 方法与 spec/commands.json 一致
+cd sdk/python && python -m pytest
+cd sdk/node && npm ci && npm test
+cd agent && ./gradlew assembleDebug testDebugUnitTest
+```
+
+`scripts/integration.sh` 会同时运行服务器、模拟手机和两个 SDK 演示，CI 做的就是这件事。
 
 | 路径 | 内容 |
 |---|---|
-| [`spec/`](spec) | `commands.json`（全部命令）、`PROTOCOL.md`、加密测试向量 |
+| [`spec/`](spec) | `commands.json`（全部命令，三种语言）、`PROTOCOL.md`、加密测试向量 |
 | [`server/`](server) | Go：`droidline`（服务器、CLI、MCP）、`droidline-relay`、`droidline-fakephone` |
 | [`agent/`](agent) | 安卓应用（Kotlin） |
-| [`sdk/python`](sdk/python)、[`sdk/node`](sdk/node) | 官方 SDK，由命令定义生成的代码加一层薄客户端 |
-| [`relay/worker`](relay/worker) | Cloudflare Workers 中继 |
-| [`scripts/gen.mjs`](scripts/gen.mjs) | 从 `commands.json` 生成 SDK 方法 |
+| [`sdk/python`](sdk/python)、[`sdk/node`](sdk/node) | 官方 SDK，由规范生成的方法加一层轻量客户端 |
+| [`relay/worker`](relay/worker) | 用于 Cloudflare Workers 的中继 |
+| [`examples/`](examples) | 在模拟手机上运行的演示脚本 |
 
-## 当前状态
+## 参与贡献
 
-版本 0.1，尚未正式发布。服务器、CLI、MCP 适配器、中继和两个 SDK 已在模拟手机上通过测试。安卓应用已通过构建和单元测试，下一步是各厂商真机测试，设置宏尤其需要真机反馈。验证内容和方法见 [`docs/STATUS.md`](docs/STATUS.md)。
+欢迎提交 Pull Request。规范、生成器和测试如何配合，见 [CONTRIBUTING.md](CONTRIBUTING.md)。目前最有帮助的贡献是真机报告：品牌和 Android 版本，以及 `kill`、`clear_data` 和网络开关是否可用。如果 Droidline 帮你省下了一些点击，点一个 ⭐ 能让更多人找到它。
 
-安全问题请见 [SECURITY.md](SECURITY.md)。请只在你拥有或获准自动化的手机和账号上使用 Droidline，用途见[使用条款](https://droidline.dev/zh/terms/)。
+## 状态
+
+版本 0.1。服务器、CLI、MCP 适配器、中继和两个 SDK 都在模拟手机上通过了测试，应用通过了单元测试，并能在 Android 13 模拟器上运行。下一步是在不同品牌的真机上验证。具体验证了什么、如何验证，见 [`docs/STATUS.md`](docs/STATUS.md)。
+
+## 安全与隐私
+
+谁可以控制手机由配对决定，握手之后的一切都端到端加密。安全问题请按 [SECURITY.md](SECURITY.md) 中的说明私下报告。
+
+Droidline 不收集使用数据，也不发送遥测。服务器只在你自己的电脑上接受连接；应用只与已配对的电脑通信，并每天一次向 GitHub 检查新版本。请只在你拥有或有权自动化的手机和账号上使用 Droidline，用途见 [使用条款](https://droidline.dev/zh/terms/)。
 
 ## 许可证
 
-MIT，见 [LICENSE](LICENSE)。
+MIT。见 [LICENSE](LICENSE)。
+
+<p align="center">
+  <a href="https://star-history.com/#KnifeLemon/Droidline&Date"><img src="https://api.star-history.com/svg?repos=KnifeLemon/Droidline&type=Date" alt="Star 趋势" width="600"></a>
+</p>
