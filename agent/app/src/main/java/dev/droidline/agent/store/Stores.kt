@@ -2,6 +2,8 @@ package dev.droidline.agent.store
 
 import android.content.Context
 import dev.droidline.agent.crypto.B64
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -50,6 +52,10 @@ class PairingStore(context: Context) {
     private val prefs = context.getSharedPreferences("pairing", Context.MODE_PRIVATE)
     private var loaded = false
     private var cached: PairingRecord? = null
+    private val _revision = MutableStateFlow(0)
+
+    /** Counts saves, so screens can re-read the record when the server renames this phone. */
+    val revision: StateFlow<Int> = _revision
 
     @Synchronized
     fun load(): PairingRecord? {
@@ -65,6 +71,7 @@ class PairingStore(context: Context) {
         prefs.edit().putString("record", record.toJson().toString()).apply()
         cached = record
         loaded = true
+        _revision.value++
     }
 
     @Synchronized
@@ -77,6 +84,7 @@ class PairingStore(context: Context) {
         prefs.edit().remove("record").apply()
         cached = null
         loaded = true
+        _revision.value++
     }
 }
 

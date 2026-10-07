@@ -223,9 +223,14 @@ func (c *Client) serverCmd(cmd *spec.Command, p map[string]any, devRef string) R
 		d.mu.Lock()
 		d.rec.Name = name
 		rec := d.rec
+		sess := d.sess
 		d.mu.Unlock()
 		if err := h.store.PutDevice(rec); err != nil {
 			return h.errResult("INTERNAL", map[string]any{"reason": err.Error()})
+		}
+		// The app shows its own name; a connected phone hears about the change at once.
+		if sess != nil {
+			sess.Send(map[string]any{"event": "renamed", "name": name})
 		}
 		return Result{"ok": true, "value": d.Info()}
 	case "revoke":

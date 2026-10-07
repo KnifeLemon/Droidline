@@ -51,7 +51,8 @@ fun StatusScreen(tick: Int) {
     val ctx = LocalContext.current
     val status by Agent.status.collectAsState()
     val ready by Agent.ready.collectAsState()
-    val record = remember(status, tick) { Agent.pairing.load() }
+    val revision by Agent.pairing.revision.collectAsState()
+    val record = remember(status, tick, revision) { Agent.pairing.load() }
     var allowlist by remember(tick) { mutableStateOf(Agent.settings.notifyAllowlist) }
     var picking by remember { mutableStateOf(false) }
     var confirmUnpair by remember { mutableStateOf(false) }

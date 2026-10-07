@@ -211,10 +211,10 @@ The phone's first encrypted line:
 `boot` is random per agent process start. The server replies:
 
 ```json
-{"event":"welcome","server":"k3j9d0a2mq","name":"OFFICE-PC","lang":"ko","ack":41,"ping":25}
+{"event":"welcome","server":"k3j9d0a2mq","name":"OFFICE-PC","lang":"ko","device_name":"shelf-01","ack":41,"ping":25}
 ```
 
-`ack` is the last `n` (4.7) the server holds from this `boot`; 0 for a new boot. `lang` is the language the server renders error messages in.
+`ack` is the last `n` (4.7) the server holds from this `boot`; 0 for a new boot. `lang` is the language the server renders error messages in. `device_name` is the phone's current name on the server; when it changes with `rename`, a connected phone receives `{"event":"renamed","name":"shelf-02"}`.
 
 In `pair_code` mode the phone shows `SAS` as a 6-digit code and the server holds the device as pending until the user runs `droidline pair 482913` (or the `pair` command). Then the server sends `{"event":"paired","name":"shelf-01"}`, stores the phone's static key, and continues with `welcome`. In `pair_qr` mode, a successful decrypt of `hello` proves the phone holds the token; the server stores the key and sends `paired` then `welcome` immediately. Pending pairings expire after 5 minutes.
 

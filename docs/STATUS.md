@@ -6,7 +6,7 @@ Last updated 2026-10-07, version 0.1.0 (unreleased).
 
 | Part | Command | Result |
 |---|---|---|
-| Spec loading, argument normalisation, error templates | `go test ./spec/` | pass |
+| Spec loading, argument normalisation (including `device` as a parameter of `rename`, `revoke` and `subscribe`), error templates | `go test ./spec/` | pass |
 | Key schedule, envelope, tickets against `spec/test-vectors.json` | `go test ./server/internal/dlcrypto/` | pass |
 | Envelope split and join over 512 KiB | `go test ./server/internal/agentlink/` | pass |
 | Server end to end against the phone simulator: code and QR pairing, single-use QR token, every command group, error rendering, pipelined order, network-cutting commands with and without `wait`, offline wait, agent restart, notifications and `wait_notification`, local HTTP guard (Origin, Host, content type), screenshot over HTTP, a phone reconnecting while its old link still looks alive | `go test ./server/internal/server/` | pass |
@@ -35,7 +35,13 @@ Working:
 
 Bugs found this way and fixed: the server crashed when a phone reconnected while its previous link still looked alive; the pairing QR escaped the commas between addresses; the macros gave up too early on a slow device; `current` could answer empty right after an app switch.
 
+Later on the same emulator: renaming a phone with `droidline rename` now reaches the app at once (the server sends `renamed`, and `welcome` carries the current name), checked by renaming `shelf-01` to `shelf-02` and back while reading the app's Status tab through Droidline. The app's new icons and colors were checked on all three tabs.
+
 Known behaviour: `clear_data` cannot clear apps that replace "Clear storage" with their own "Manage space" screen (Chrome is one). It fails with step `manage_space`.
+
+## Examples in the docs
+
+The tutorial script in Python, Node.js, bash and PowerShell, the snippets in the Python, Node.js, CLI and HTTP guides, and the Go, Java, C# and PHP examples on the "Other languages" page were run against `droidline serve` and the phone simulator, and their output was copied from those runs. Running them found that `droidline rename <id> <name>` failed with `BAD_ARGS` because the server treated `device` only as the target phone; that is fixed and covered by a test.
 
 ## Not verified yet
 

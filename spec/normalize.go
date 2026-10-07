@@ -50,7 +50,8 @@ func (s *Spec) normalizeFor(c *Command, aliasBy string, raw map[string]any) (map
 	}
 	in := map[string]any{}
 	for k, v := range raw {
-		if !envelopeKeys[k] {
+		// rename, revoke and subscribe take "device" as a parameter, not as the target phone.
+		if !envelopeKeys[k] || c.Param(k) != nil {
 			in[k] = v
 		}
 	}

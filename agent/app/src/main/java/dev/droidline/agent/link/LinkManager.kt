@@ -284,6 +284,7 @@ class LinkManager(
                 }
                 when (msg.optString("event")) {
                     "paired" -> onPaired(target, msg)
+                    "renamed" -> msg.optString("name").ifEmpty { null }?.let { n -> Agent.pairing.update { it.copy(deviceName = n) } }
                     "welcome" -> {
                         welcomed = true
                         val ack = msg.optLong("ack", 0)
@@ -292,7 +293,8 @@ class LinkManager(
                         if (pairFailure != null) break
                         session.onWelcome(ack)
                         val name = msg.optString("name").ifEmpty { serverName }
-                        Agent.pairing.update { it.copy(serverName = name) }
+                        val deviceName = msg.optString("device_name").ifEmpty { null }
+                        Agent.pairing.update { it.copy(serverName = name, deviceName = deviceName ?: it.deviceName) }
                         Agent.status.value = LinkStatus(Phase.CONNECTED, link.route, name)
                         pump?.cancel()
                         // A failed write ends this link; the reader then sees the close and the session ends normally.

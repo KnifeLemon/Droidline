@@ -246,7 +246,7 @@ func (d *Device) attach(sess *agentlink.Session, hello agentlink.Hello, in <-cha
 
 	sess.Send(map[string]any{
 		"event": "welcome", "server": d.hub.serverID, "name": d.hub.Name(), "lang": d.hub.Lang(),
-		"ack": ack, "ping": int(pingInterval / time.Second),
+		"device_name": rec.Name, "ack": ack, "ping": int(pingInterval / time.Second),
 	})
 	sess.Send(d.hub.configEvent(d.ID))
 	if resend != nil {

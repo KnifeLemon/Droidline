@@ -168,3 +168,20 @@ func TestRenderError(t *testing.T) {
 		t.Fatalf("zh: %q", got)
 	}
 }
+
+func TestDeviceAsParameter(t *testing.T) {
+	// For server commands "device" names the phone to act on, so it must survive as a parameter.
+	got := norm(t, "rename", map[string]any{"cmd": "rename", "device": "k7d2q9xa", "name": "shelf-01"})
+	if got["device"] != "k7d2q9xa" || got["name"] != "shelf-01" {
+		t.Fatalf("rename lost its parameters: %v", got)
+	}
+	got = norm(t, "revoke", map[string]any{"cmd": "revoke", "args": []any{"shelf-01"}})
+	if got["device"] != "shelf-01" {
+		t.Fatalf("revoke lost its device: %v", got)
+	}
+	// For phone commands "device" is the target and never a parameter.
+	got = norm(t, "back", map[string]any{"cmd": "back", "device": "shelf-01"})
+	if _, ok := got["device"]; ok {
+		t.Fatalf("back kept the envelope device: %v", got)
+	}
+}
