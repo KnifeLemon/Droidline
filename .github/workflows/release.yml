@@ -145,15 +145,12 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+      # Trusted publishing: npm checks this workflow's OIDC identity (KnifeLemon/Droidline, release.yml), so there is
+      # no token to store or renew. It needs npm 11.5.1 or later.
+      - run: npm install -g npm@latest
       - name: publish
         working-directory: sdk/node
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::warning::NPM_TOKEN is not set; skipping npm publish."
-            exit 0
-          fi
           npm ci
           npm publish --provenance --access public
 
