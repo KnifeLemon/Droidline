@@ -5,18 +5,25 @@ build-backend = "hatchling.build"
 [project]
 name = "droidline"
 version = "0.1.1"
-description = "Control Android phones from Python with one-line commands, without ADB."
+description = "Control Android phones from Python without ADB or root: find elements, tap, type, take screenshots and read notifications."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [{ name = "Droidline contributors" }]
-keywords = ["android", "automation", "accessibility", "testing", "droidline"]
+keywords = [
+    "android", "android-automation", "mobile-automation", "ui-automation", "test-automation", "testing",
+    "appium", "uiautomator", "adb", "accessibility", "rpa", "device-farm", "mcp", "pytest", "droidline",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
+    "Framework :: Pytest",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Testing :: Acceptance",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
 dependencies = []
@@ -26,6 +33,7 @@ Homepage = "https://droidline.dev"
 Documentation = "https://droidline.dev/docs"
 Repository = "https://github.com/KnifeLemon/Droidline"
 Issues = "https://github.com/KnifeLemon/Droidline/issues"
+Changelog = "https://github.com/KnifeLemon/Droidline/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/droidline"]
