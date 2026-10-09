@@ -1,0 +1,39 @@
+{
+  "manifest_version": "0.3",
+  "name": "droidline",
+  "display_name": "Droidline",
+  "version": "0.0.0",
+  "description": "Let an AI agent see and use a real Android phone over Wi-Fi, without ADB or root.",
+  "long_description": "Every Droidline command is a tool: read the screen, find elements by text or ID, tap, type, swipe, take screenshots, run OCR, open apps and settings, and read notifications. The phone runs the Droidline app (Android 9 or later) and pairs once with `droidline pair`. If no `droidline serve` is running, the tool starts one inside itself.",
+  "author": {
+    "name": "KnifeLemon",
+    "url": "https://github.com/KnifeLemon"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KnifeLemon/Droidline"
+  },
+  "homepage": "https://droidline.dev",
+  "documentation": "https://droidline.dev/docs/ai-agents/",
+  "support": "https://github.com/KnifeLemon/Droidline/issues",
+  "icon": "icon.png",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/droidline-linux",
+    "mcp_config": {
+      "command": "${__dirname}/server/droidline-linux",
+      "args": ["mcp"],
+      "env": {},
+      "platform_overrides": {
+        "win32": { "command": "${__dirname}/server/droidline.exe" },
+        "darwin": { "command": "${__dirname}/server/droidline-darwin" }
+      }
+    }
+  },
+  "tools_generated": true,
+  "keywords": ["android", "automation", "testing", "phone", "mobile"],
+  "license": "MIT",
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"]
+  }
+}

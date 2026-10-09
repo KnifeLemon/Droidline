@@ -6,6 +6,15 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.5
+
+### New
+
+- `droidline.mcpb` on each release: a bundle for Claude Desktop and other MCP clients that carries `droidline` for
+  Windows x64, macOS (Intel and Apple silicon) and Linux x64. Open it and the phone's commands appear as tools, with no
+  separate install. On Linux arm64, use the release archive and `droidline mcp`.
+- Droidline is listed in the MCP Registry as `io.github.KnifeLemon/droidline`.
+
 ## 0.1.4
 
 ### Changed

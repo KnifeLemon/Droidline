@@ -1,6 +1,6 @@
 {
   "name": "droidline",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Android automation from Node.js: test your apps on real phones, script the tasks you repeat and run many phones at once. No ADB, no USB cable, no root.",
   "license": "MIT",
   "type": "module",

@@ -143,7 +143,7 @@ curl -s -X POST localhost:8780/devices/_/touch \
 { "mcpServers": { "droidline": { "command": "droidline", "args": ["mcp"] } } }
 ```
 
-With Claude Code: `claude mcp add droidline -- droidline mcp`. Other languages can open a TCP socket and send one JSON line per command; see [Other languages](https://droidline.dev/docs/other-languages/) for Go, Java and PHP.
+With Claude Code: `claude mcp add droidline -- droidline mcp`. In Claude Desktop you can instead open `droidline.mcpb` from [Releases](https://github.com/KnifeLemon/Droidline/releases/latest), which carries its own `droidline`; it is also listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.KnifeLemon/droidline`. Other languages can open a TCP socket and send one JSON line per command; see [Other languages](https://droidline.dev/docs/other-languages/) for Go, Java and PHP.
 
 ## Features
 

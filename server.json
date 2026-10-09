@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.KnifeLemon/droidline",
+  "title": "Droidline",
+  "description": "Let an AI agent see and use a real Android phone over Wi-Fi, without ADB or root.",
+  "websiteUrl": "https://droidline.dev/docs/ai-agents/",
+  "repository": {
+    "url": "https://github.com/KnifeLemon/Droidline",
+    "source": "github"
+  },
+  "version": "0.1.5",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/KnifeLemon/Droidline/releases/download/v0.1.5/droidline.mcpb",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

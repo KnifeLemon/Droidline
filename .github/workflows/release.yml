@@ -1,7 +1,8 @@
 name: release
 
 # Add a section to CHANGELOG.md, then push a tag like v0.1.0. Binaries, the signed APK and checksums go to a
-# published GitHub release titled "Droidline <version>"; the SDKs go to PyPI, npm and NuGet; the relay image goes to GHCR.
+# published GitHub release titled "Droidline <version>"; the SDKs go to PyPI, npm and NuGet; the relay image goes to GHCR;
+# the MCP server goes to the MCP Registry as a .mcpb bundle (server.json gets its version, URL and hash here).
 on:
   push:
     tags: ["v*"]
@@ -45,6 +46,41 @@ jobs:
           name: binaries
           path: dist/*
 
+  mcpb:
+    # One bundle for every desktop: Windows x64, a universal macOS binary (lipo needs macOS) and Linux x64.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: build bundle
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          b=build/mcpb
+          mkdir -p $b/server dist
+          build() {
+            CGO_ENABLED=0 GOOS=$1 GOARCH=$2 go build -trimpath \
+              -ldflags "-s -w -X github.com/KnifeLemon/Droidline/server/internal/hub.Version=$VERSION" \
+              -o "$3" ./server/cmd/droidline
+          }
+          build windows amd64 $b/server/droidline.exe
+          build linux amd64 $b/server/droidline-linux
+          build darwin amd64 build/droidline-darwin-amd64
+          build darwin arm64 build/droidline-darwin-arm64
+          lipo -create -output $b/server/droidline-darwin build/droidline-darwin-amd64 build/droidline-darwin-arm64
+          chmod +x $b/server/droidline-linux $b/server/droidline-darwin
+          jq --arg v "$VERSION" '.version = $v' mcp/manifest.json > $b/manifest.json
+          cp sdk/dotnet/src/Droidline/icon.png $b/
+          npx -y @anthropic-ai/mcpb pack $b dist/droidline.mcpb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpb
+          path: dist/droidline.mcpb
+
   apk:
     runs-on: ubuntu-latest
     steps:
@@ -84,7 +120,7 @@ jobs:
           path: dist/droidline-agent.apk
 
   github-release:
-    needs: [binaries, apk]
+    needs: [binaries, apk, mcpb]
     # Runs whenever the binaries built, so a missing APK can be added by re-running apk and this job.
     if: ${{ !cancelled() && needs.binaries.result == 'success' }}
     runs-on: ubuntu-latest
@@ -123,6 +159,29 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "Droidline $version" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
           fi
+
+  mcp-registry:
+    # The registry checks this job's OIDC identity against the io.github.KnifeLemon namespace, so there is nothing to
+    # set up. The package points at the droidline.mcpb that github-release just attached.
+    needs: [github-release, mcpb]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcpb
+          path: dist
+      - name: publish
+        run: |
+          sha=$(sha256sum dist/droidline.mcpb | cut -d' ' -f1)
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/droidline.mcpb"
+          jq --arg v "${GITHUB_REF_NAME#v}" --arg u "$url" --arg s "$sha" \
+            '.version = $v | .packages[0].identifier = $u | .packages[0].fileSha256 = $s' server.json > server.tmp
+          mv server.tmp server.json
+          curl -fsSL https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz \
+            | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
 
   pypi:
     # Set the repository variable PYPI_PUBLISH=true after adding this repo as a trusted publisher on PyPI.

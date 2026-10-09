@@ -143,7 +143,7 @@ curl -s -X POST localhost:8780/devices/_/touch \
 { "mcpServers": { "droidline": { "command": "droidline", "args": ["mcp"] } } }
 ```
 
-在 Claude Code 中：`claude mcp add droidline -- droidline mcp`。其他语言可以打开 TCP 套接字，每条命令发送一行 JSON。Go、Java 和 PHP 示例见 [其他语言](https://droidline.dev/zh/docs/other-languages/)。
+在 Claude Code 中：`claude mcp add droidline -- droidline mcp`。在 Claude Desktop 中也可以直接打开 [Releases](https://github.com/KnifeLemon/Droidline/releases/latest) 里的 `droidline.mcpb`，其中自带 `droidline`；它也以 `io.github.KnifeLemon/droidline` 收录在 [MCP Registry](https://registry.modelcontextprotocol.io)。其他语言可以打开 TCP 套接字，每条命令发送一行 JSON。Go、Java 和 PHP 示例见 [其他语言](https://droidline.dev/zh/docs/other-languages/)。
 
 ## 功能
 
