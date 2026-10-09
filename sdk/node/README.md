@@ -1,6 +1,6 @@
 # droidline
 
-Node.js SDK for [Droidline](https://droidline.dev). Control Android phones from your code with one-line commands, without ADB.
+Node.js SDK for [Droidline](https://droidline.dev), Android automation from code. Test your apps on real phones, script the tasks you repeat and run many phones at once, without ADB, a USB cable or root.
 
 The SDK talks to the Droidline server on your PC (`droidline serve`, port 8780). The server and the phone do the waiting, retries and fallbacks; this package sends commands and turns errors into rejected promises. Node 18+, no dependencies, ES modules with TypeScript types.
 

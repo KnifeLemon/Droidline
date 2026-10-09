@@ -1,6 +1,6 @@
 # What has been verified
 
-Last updated 2026-10-09, version 0.1.2.
+Last updated 2026-10-09, version 0.1.3.
 
 The Settings macros (`kill`, `wifi`, `data`, `airplane`, and `clear_data` through Settings) were removed on 2026-10-09, because every phone maker, Android version and language needed its own labels. Opening a Settings page is now the general `intent` command, the rest are recipes in the docs, and `clear_data` works only in device owner mode. The emulator and MEmu sections below list the macros as they were tested then.
 

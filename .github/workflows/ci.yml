@@ -43,6 +43,16 @@ jobs:
           npm test
           npm run build
 
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet test sdk/dotnet
+      - run: dotnet pack sdk/dotnet/src/Droidline -c Release -o dist
+
   integration:
     needs: [go, sdk]
     runs-on: ubuntu-latest

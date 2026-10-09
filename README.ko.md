@@ -1,10 +1,11 @@
 <p align="center">
-  <a href="https://droidline.dev/ko/"><img src="docs/media/banner-ko.jpg" alt="Droidline: 안드로이드 폰을, 한 줄씩." width="100%"></a>
+  <a href="https://droidline.dev/ko/"><img src="docs/media/banner-ko.jpg" alt="Droidline: 안드로이드 자동화를, 한 줄씩." width="100%"></a>
 </p>
 
 <p align="center">
-  <b>내 코드에서 실제 안드로이드 폰을, 동작 하나에 한 줄로.</b><br>
-  Python, Node.js, 셸, HTTP, AI 에이전트 어디서든. ADB도, USB 케이블도, 루팅도 필요 없습니다.
+  <b>코드로 실제 안드로이드 폰을 자동화합니다.</b><br>
+  앱 테스트, 반복 작업, 여러 대의 폰 운영, AI 에이전트에게 폰 맡기기까지.<br>
+  Python, Node.js, 셸, HTTP 어디서든. ADB도, USB 케이블도, 루팅도 필요 없습니다.
 </p>
 
 <p align="center">
@@ -33,6 +34,15 @@
     <td width="33%" valign="top"><b>어디에 있는 폰이든</b><br>폰이 PC로 먼저 접속하므로 같은 Wi-Fi는 물론, 터널이나 직접 운영하는 릴레이를 거쳐 모바일 데이터에서도 동작합니다. 모든 줄은 종단간 암호화됩니다.</td>
   </tr>
 </table>
+
+## 활용 사례
+
+* **내 앱 테스트**를 실제 폰에서 합니다. 문자 메시지로 받은 코드로 로그인하는 것처럼 다른 앱을 거치는 흐름도 포함됩니다.
+* **선반 가득한 폰**이 매일 같은 루틴을 실행합니다. 폰마다 자기 네트워크나 프록시를 거칩니다.
+* **AI 에이전트에게 손 달아 주기**: MCP를 통해 Claude, Cursor 같은 에이전트가 폰 화면을 보고 조작할 수 있습니다.
+* **작은 개인 자동화**도 됩니다. 밤에 Wi-Fi를 끄거나 한 시간마다 앱에서 값을 하나 가져오는 식입니다.
+
+Droidline은 일반 앱이 받을 수 있는 권한만 쓰기 때문에 할 수 없는 일이 몇 가지 있습니다. [할 수 없는 것](#할-수-없는-것)을 참고하세요.
 
 ## 동작하는 모습
 
@@ -100,6 +110,18 @@ await d.touch("text", "Log in", { timeout: 15 });
 console.log(await d.getText("id", "greeting"));
 ```
 
+**C#과 .NET** (`dotnet add package Droidline`, .NET 8 이상 또는 .NET Framework 4.6.2 이상)
+
+```csharp
+using Droidline;
+
+await using var d = await DroidlineClient.ConnectAsync();
+await d.LaunchAsync("dev.droidline.demo");
+await d.InputAsync("id", "email", "knife");
+await d.TouchAsync("text", "Log in", timeout: 15);
+Console.WriteLine(await d.GetTextAsync("id", "greeting"));
+```
+
 **명령줄** (서버에 포함)
 
 ```bash
@@ -121,7 +143,7 @@ curl -s -X POST localhost:8780/devices/_/touch \
 { "mcpServers": { "droidline": { "command": "droidline", "args": ["mcp"] } } }
 ```
 
-Claude Code에서는 `claude mcp add droidline -- droidline mcp`. 그 밖의 언어는 TCP 소켓을 열어 명령마다 JSON 한 줄을 보내면 됩니다. Go, Java, C#, PHP 예제는 [다른 언어](https://droidline.dev/ko/docs/other-languages/)에 있습니다.
+Claude Code에서는 `claude mcp add droidline -- droidline mcp`. 그 밖의 언어는 TCP 소켓을 열어 명령마다 JSON 한 줄을 보내면 됩니다. Go, Java, PHP 예제는 [다른 언어](https://droidline.dev/ko/docs/other-languages/)에 있습니다.
 
 ## 기능
 
@@ -208,6 +230,7 @@ go test ./spec/ ./server/...
 node scripts/gen.mjs --check           # SDK 메서드가 spec/commands.json과 맞는지
 cd sdk/python && python -m pytest
 cd sdk/node && npm ci && npm test
+dotnet test sdk/dotnet
 cd agent && ./gradlew assembleDebug testDebugUnitTest
 ```
 
@@ -218,7 +241,7 @@ cd agent && ./gradlew assembleDebug testDebugUnitTest
 | [`spec/`](spec) | `commands.json`(모든 명령, 3개 언어), `PROTOCOL.md`, 암호화 테스트 벡터 |
 | [`server/`](server) | Go: `droidline`(서버, CLI, MCP), `droidline-relay`, `droidline-fakephone` |
 | [`agent/`](agent) | 안드로이드 앱(Kotlin) |
-| [`sdk/python`](sdk/python), [`sdk/node`](sdk/node) | 공식 SDK. 명세에서 생성한 메서드와 얇은 클라이언트 |
+| [`sdk/python`](sdk/python), [`sdk/node`](sdk/node), [`sdk/dotnet`](sdk/dotnet) | 공식 SDK. 명세에서 생성한 메서드와 얇은 클라이언트 |
 | [`relay/worker`](relay/worker) | Cloudflare Workers용 릴레이 |
 | [`examples/`](examples) | 가상 폰에서 도는 데모 스크립트 |
 

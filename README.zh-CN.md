@@ -1,10 +1,11 @@
 <p align="center">
-  <a href="https://droidline.dev/zh/"><img src="docs/media/banner-zh.jpg" alt="Droidline：安卓手机，一行一行地控制。" width="100%"></a>
+  <a href="https://droidline.dev/zh/"><img src="docs/media/banner-zh.jpg" alt="Droidline：安卓自动化，一行一行来。" width="100%"></a>
 </p>
 
 <p align="center">
-  <b>用你的代码控制真实的安卓手机，每个操作一行。</b><br>
-  Python、Node.js、命令行、HTTP 或 AI 智能体都可以。无需 ADB、USB 数据线或 root。
+  <b>用代码自动操作真实的安卓手机。</b><br>
+  测试应用、执行重复任务、管理一整排手机，或交给 AI 智能体使用。<br>
+  Python、Node.js、命令行或 HTTP 都可以。无需 ADB、USB 数据线或 root。
 </p>
 
 <p align="center">
@@ -33,6 +34,15 @@
     <td width="33%" valign="top"><b>手机在哪里都能用</b><br>手机主动连接你的电脑，所以在同一 Wi-Fi 下能用，通过隧道或你自己运行的中继，在移动数据下也能用。每一行都端到端加密。</td>
   </tr>
 </table>
+
+## 人们用它做什么
+
+* 在真机上**测试你自己的应用**，包括会跳转到其他应用的流程，例如用短信中的验证码登录。
+* 让**一整架手机**每天执行同样的例行任务，每部手机使用各自的网络或代理。
+* **给 AI 智能体一双手**：通过 MCP，Claude、Cursor 等智能体可以查看手机屏幕并进行操作。
+* **个人的小型自动化**，例如晚上关闭 Wi-Fi，或者每小时从某个应用中读取一个数值。
+
+Droidline 只使用普通应用能获得的权限，所以有些事情做不到，详见[做不到的事](#做不到的事)。
 
 ## 实际效果
 
@@ -100,6 +110,18 @@ await d.touch("text", "Log in", { timeout: 15 });
 console.log(await d.getText("id", "greeting"));
 ```
 
+**C# 与 .NET**（`dotnet add package Droidline`，.NET 8 及以上或 .NET Framework 4.6.2 及以上）
+
+```csharp
+using Droidline;
+
+await using var d = await DroidlineClient.ConnectAsync();
+await d.LaunchAsync("dev.droidline.demo");
+await d.InputAsync("id", "email", "knife");
+await d.TouchAsync("text", "Log in", timeout: 15);
+Console.WriteLine(await d.GetTextAsync("id", "greeting"));
+```
+
 **命令行**（随服务器附带）
 
 ```bash
@@ -121,7 +143,7 @@ curl -s -X POST localhost:8780/devices/_/touch \
 { "mcpServers": { "droidline": { "command": "droidline", "args": ["mcp"] } } }
 ```
 
-在 Claude Code 中：`claude mcp add droidline -- droidline mcp`。其他语言可以打开 TCP 套接字，每条命令发送一行 JSON。Go、Java、C# 和 PHP 示例见 [其他语言](https://droidline.dev/zh/docs/other-languages/)。
+在 Claude Code 中：`claude mcp add droidline -- droidline mcp`。其他语言可以打开 TCP 套接字，每条命令发送一行 JSON。Go、Java 和 PHP 示例见 [其他语言](https://droidline.dev/zh/docs/other-languages/)。
 
 ## 功能
 
@@ -208,6 +230,7 @@ go test ./spec/ ./server/...
 node scripts/gen.mjs --check           # 检查 SDK 方法与 spec/commands.json 一致
 cd sdk/python && python -m pytest
 cd sdk/node && npm ci && npm test
+dotnet test sdk/dotnet
 cd agent && ./gradlew assembleDebug testDebugUnitTest
 ```
 
@@ -218,7 +241,7 @@ cd agent && ./gradlew assembleDebug testDebugUnitTest
 | [`spec/`](spec) | `commands.json`（全部命令，三种语言）、`PROTOCOL.md`、加密测试向量 |
 | [`server/`](server) | Go：`droidline`（服务器、CLI、MCP）、`droidline-relay`、`droidline-fakephone` |
 | [`agent/`](agent) | 安卓应用（Kotlin） |
-| [`sdk/python`](sdk/python)、[`sdk/node`](sdk/node) | 官方 SDK，由规范生成的方法加一层轻量客户端 |
+| [`sdk/python`](sdk/python)、[`sdk/node`](sdk/node)、[`sdk/dotnet`](sdk/dotnet) | 官方 SDK，由规范生成的方法加一层轻量客户端 |
 | [`relay/worker`](relay/worker) | 用于 Cloudflare Workers 的中继 |
 | [`examples/`](examples) | 在模拟手机上运行的演示脚本 |
 

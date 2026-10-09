@@ -1,7 +1,7 @@
 name: release
 
 # Add a section to CHANGELOG.md, then push a tag like v0.1.0. Binaries, the signed APK and checksums go to a
-# published GitHub release titled "Droidline <version>"; the SDKs go to PyPI and npm; the relay image goes to GHCR.
+# published GitHub release titled "Droidline <version>"; the SDKs go to PyPI, npm and NuGet; the relay image goes to GHCR.
 on:
   push:
     tags: ["v*"]
@@ -153,6 +153,26 @@ jobs:
         run: |
           npm ci
           npm publish --provenance --access public
+
+  nuget:
+    # Set the repository variable NUGET_USER to the nuget.org account name after adding a trusted publishing policy
+    # for this repository and release.yml on nuget.org. NuGet/login trades this job's OIDC token for an API key that
+    # lasts an hour, so there is no key to store or renew.
+    if: vars.NUGET_USER != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: pack
+        run: dotnet pack sdk/dotnet/src/Droidline -c Release -p:Version=${GITHUB_REF_NAME#v} -o dist
+      - uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - name: publish
+        run: dotnet nuget push "dist/*.nupkg" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   relay-image:
     runs-on: ubuntu-latest

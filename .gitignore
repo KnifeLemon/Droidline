@@ -32,5 +32,11 @@ examples/screen.json
 examples/screen.png
 examples/package-lock.json
 
+# .NET
+sdk/dotnet/**/bin/
+sdk/dotnet/**/obj/
+examples/dotnet/bin/
+examples/dotnet/obj/
+
 # Local tooling
 .claude/

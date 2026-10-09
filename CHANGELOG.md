@@ -6,6 +6,12 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.3
+
+### New
+
+- A .NET SDK on NuGet: `dotnet add package Droidline`, with the same commands as the Python and Node.js SDKs.
+
 ## 0.1.2
 
 ### New

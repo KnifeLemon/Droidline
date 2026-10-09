@@ -4,7 +4,7 @@
 
 Every command lives in [`spec/commands.json`](spec/commands.json). Change it there first, then:
 
-1. `node scripts/gen.mjs` regenerates the Python and Node methods.
+1. `node scripts/gen.mjs` regenerates the Python, Node and .NET methods (`sdk/dotnet/src/Droidline/Generated.cs`).
 2. Implement the command on the phone in `agent/` (and in the simulator in `server/internal/fakeagent/ui.go`, so SDK tests can use it).
 3. If the server must validate something the JSON cannot express, add it to `special()` in `spec/normalize.go` with a test.
 4. Summaries, notes and error messages need English, Korean and Simplified Chinese.
@@ -22,6 +22,7 @@ go vet ./spec/ ./server/... && go test ./spec/ ./server/...
 node scripts/gen.mjs --check
 cd sdk/python && python -m pytest
 cd sdk/node && npm test
+dotnet test sdk/dotnet
 cd agent && ./gradlew testDebugUnitTest
 ```
 

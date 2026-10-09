@@ -1,10 +1,11 @@
 <p align="center">
-  <a href="https://droidline.dev"><img src="docs/media/banner-en.jpg" alt="Droidline: Android phones, one line at a time." width="100%"></a>
+  <a href="https://droidline.dev"><img src="docs/media/banner-en.jpg" alt="Droidline: Android automation, one line at a time." width="100%"></a>
 </p>
 
 <p align="center">
-  <b>Control real Android phones from your code, one line per action.</b><br>
-  Python, Node.js, the shell, HTTP or an AI agent. No ADB, no USB cable, no root.
+  <b>Automate real Android phones from your code.</b><br>
+  Test your apps, script the tasks you repeat, run a shelf of phones, or let an AI agent use one.<br>
+  Python, Node.js, the shell or HTTP. No ADB, no USB cable, no root.
 </p>
 
 <p align="center">
@@ -33,6 +34,15 @@
     <td width="33%" valign="top"><b>Phones anywhere</b><br>The phone connects out to your PC, so it works on the same Wi-Fi or on mobile data through a tunnel or a relay you run. Every line is encrypted end to end.</td>
   </tr>
 </table>
+
+## What people use it for
+
+* **Testing your own app** on real phones, including flows that cross into other apps, such as a login with a code from a text message.
+* **A shelf of phones** running the same routine every day, each through its own network or proxy.
+* **Giving an AI agent hands**: through MCP, Claude, Cursor and other agents can look at a phone screen and act on it.
+* **Small personal automations**, such as turning Wi-Fi off at night or collecting a value from an app every hour.
+
+Droidline uses only permissions an ordinary app can get, so a few things are out of reach: see [What it cannot do](#what-it-cannot-do).
 
 ## See it in action
 
@@ -100,6 +110,18 @@ await d.touch("text", "Log in", { timeout: 15 });
 console.log(await d.getText("id", "greeting"));
 ```
 
+**C# and .NET** (`dotnet add package Droidline`, .NET 8+ or .NET Framework 4.6.2+)
+
+```csharp
+using Droidline;
+
+await using var d = await DroidlineClient.ConnectAsync();
+await d.LaunchAsync("dev.droidline.demo");
+await d.InputAsync("id", "email", "knife");
+await d.TouchAsync("text", "Log in", timeout: 15);
+Console.WriteLine(await d.GetTextAsync("id", "greeting"));
+```
+
 **Command line** (comes with the server)
 
 ```bash
@@ -121,7 +143,7 @@ curl -s -X POST localhost:8780/devices/_/touch \
 { "mcpServers": { "droidline": { "command": "droidline", "args": ["mcp"] } } }
 ```
 
-With Claude Code: `claude mcp add droidline -- droidline mcp`. Other languages can open a TCP socket and send one JSON line per command; see [Other languages](https://droidline.dev/docs/other-languages/) for Go, Java, C# and PHP.
+With Claude Code: `claude mcp add droidline -- droidline mcp`. Other languages can open a TCP socket and send one JSON line per command; see [Other languages](https://droidline.dev/docs/other-languages/) for Go, Java and PHP.
 
 ## Features
 
@@ -206,6 +228,7 @@ go test ./spec/ ./server/...
 node scripts/gen.mjs --check           # SDK methods match spec/commands.json
 cd sdk/python && python -m pytest
 cd sdk/node && npm ci && npm test
+dotnet test sdk/dotnet
 cd agent && ./gradlew assembleDebug testDebugUnitTest
 ```
 
@@ -216,7 +239,7 @@ cd agent && ./gradlew assembleDebug testDebugUnitTest
 | [`spec/`](spec) | `commands.json` (every command, in three languages), `PROTOCOL.md`, crypto test vectors |
 | [`server/`](server) | Go: `droidline` (server, CLI, MCP), `droidline-relay`, `droidline-fakephone` |
 | [`agent/`](agent) | The Android app, in Kotlin |
-| [`sdk/python`](sdk/python), [`sdk/node`](sdk/node) | Official SDKs, generated from the spec plus a thin client |
+| [`sdk/python`](sdk/python), [`sdk/node`](sdk/node), [`sdk/dotnet`](sdk/dotnet) | Official SDKs, generated from the spec plus a thin client |
 | [`relay/worker`](relay/worker) | A relay for Cloudflare Workers |
 | [`examples/`](examples) | Demo scripts that run against the simulated phone |
 
