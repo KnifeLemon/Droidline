@@ -1,5 +1,7 @@
 # droidline
 
+[![Droidline: Android automation, one line at a time.](https://raw.githubusercontent.com/KnifeLemon/Droidline/main/docs/media/banner-en.jpg)](https://droidline.dev)
+
 Python SDK for [Droidline](https://droidline.dev), Android automation from code. Test your apps on real phones, script the tasks you repeat and run many phones at once, without ADB, a USB cable or root.
 
 The SDK talks to the Droidline server on your PC (`droidline serve`, port 8780). The server and the phone do the waiting, retries and fallbacks; this package sends commands and turns errors into exceptions. Python 3.9+, no dependencies.
