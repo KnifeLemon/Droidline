@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "droidline"
-version = "0.1.1"
+version = "0.1.2"
 description = "Control Android phones from Python without ADB or root: find elements, tap, type, take screenshots and read notifications."
 readme = "README.md"
 requires-python = ">=3.9"

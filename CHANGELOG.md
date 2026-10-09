@@ -6,6 +6,13 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.2
+
+### New
+
+- The SDKs are on the package registries: `pip install droidline` for Python and `npm install droidline` for
+  Node.js. Both are published from this repository's release workflow.
+
 ## 0.1.1
 
 ### New, all optional
