@@ -39,7 +39,7 @@
 
 * **Testing your own app** on real phones, including flows that cross into other apps, such as a login with a code from a text message.
 * **A shelf of phones** running the same routine every day, each through its own network or proxy.
-* **Giving an AI agent hands**: through MCP, Claude, Cursor and other agents can look at a phone screen and act on it.
+* **Giving an AI agent hands**: through MCP, Claude, ChatGPT, Cursor and other agents can look at a phone screen and act on it.
 * **Small personal automations**, such as turning Wi-Fi off at night or collecting a value from an app every hour.
 
 Droidline uses only permissions an ordinary app can get, so a few things are out of reach: see [What it cannot do](#what-it-cannot-do).
