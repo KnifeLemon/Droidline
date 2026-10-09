@@ -6,6 +6,13 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.4
+
+### Changed
+
+- The NuGet package shows the Droidline icon, and the package pages on PyPI, npm and NuGet open with the Droidline
+  banner.
+
 ## 0.1.3
 
 ### New

@@ -11,7 +11,7 @@
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
 
     <PackageId>Droidline</PackageId>
-    <Version>0.1.3</Version>
+    <Version>0.1.4</Version>
     <Authors>Droidline contributors</Authors>
     <Description>Android automation from C# and .NET: test your apps on real phones, script the tasks you repeat and run many phones at once. No ADB, no USB cable, no root.</Description>
     <PackageTags>android;android-automation;mobile-automation;ui-automation;test-automation;testing;appium;uiautomator;adb;accessibility;rpa;device-farm;mcp;dotnet;csharp;droidline</PackageTags>
