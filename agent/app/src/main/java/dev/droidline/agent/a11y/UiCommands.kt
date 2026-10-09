@@ -17,11 +17,26 @@ object UiCommands {
 
     fun svc(): DroidAccessibilityService = DroidAccessibilityService.instance ?: throw CmdError("NO_ACCESSIBILITY")
 
-    fun selector(cmd: String, p: JSONObject): Selector {
-        val by = p.optString("by")
-        if (by !in Selector.KINDS) throw CmdError.badArgs(cmd, "by must be one of ${Selector.KINDS.joinToString(", ")}")
+    fun selector(cmd: String, p: JSONObject): Target {
+        val raw = p.opt("by")
+        if (raw is JSONObject) return query(cmd, raw)
+        val by = raw as? String ?: ""
+        if (by !in Selector.KINDS) throw CmdError.badArgs(cmd, "by must be one of ${Selector.KINDS.joinToString(", ")}, or a query object")
         val value = p.opt("value") as? String ?: throw CmdError.badArgs(cmd, "value must be a string")
+        if (by.endsWith("Matches")) {
+            try {
+                Regex(value)
+            } catch (e: IllegalArgumentException) {
+                throw CmdError.badArgs(cmd, "value is not a valid regular expression: ${e.message}")
+            }
+        }
         return Selector(by, value)
+    }
+
+    private fun query(cmd: String, o: JSONObject): Query = try {
+        Query.parse(o)
+    } catch (e: IllegalArgumentException) {
+        throw CmdError.badArgs(cmd, e.message ?: "invalid query")
     }
 
     private fun nth(p: JSONObject) = p.optInt("nth", 0).coerceAtLeast(0)
@@ -30,14 +45,14 @@ object UiCommands {
     /** Formats seconds the way a person wrote them: 10, not 10.0. */
     fun secText(s: Double): Any = if (s == Math.floor(s)) s.toLong() else s
 
-    fun notFound(sel: Selector, timeout: Double) = CmdError(
+    fun notFound(sel: Target, timeout: Double) = CmdError(
         "NOT_FOUND",
         mapOf("target" to sel.describe(), "timeout" to secText(timeout), "screen" to svc().screenText()),
     )
 
-    fun findNow(sel: Selector, nth: Int): UiNode? = Matcher.nth(svc().selectorRoots(), sel, nth)
+    fun findNow(sel: Target, nth: Int): UiNode? = Matcher.nth(svc().selectorRoots(), sel, nth)
 
-    suspend fun await(sel: Selector, nth: Int, timeout: Double): UiNode {
+    suspend fun await(sel: Target, nth: Int, timeout: Double): UiNode {
         val deadline = System.currentTimeMillis() + (timeout * 1000).toLong()
         while (true) {
             findNow(sel, nth)?.let { return it }
@@ -148,17 +163,34 @@ object UiCommands {
         var unchanged = 0
         while (true) {
             val roots = svc().selectorRoots()
-            if (Matcher.nth(roots, sel, nth) != null) return JSONObject().put("swipes", swipes)
+            // Lists keep items just past the edge in the tree; those still need a swipe.
+            val hit = Matcher.nth(roots, sel, nth)
+            if (hit != null && hit.visible && !hit.bounds.isEmpty) {
+                showWhole(hit, roots, dir == "down" || dir == "up")
+                return JSONObject().put("swipes", swipes)
+            }
             val sig = Matcher.signature(roots)
             unchanged = if (sig == lastSig) unchanged + 1 else 0
             lastSig = sig
-            if (swipes >= maxSwipes || unchanged >= 2) break
+            if (swipes >= maxSwipes || unchanged >= 2) {
+                // Nothing moves any more, so an element the system calls hidden is as visible as it gets.
+                if (Matcher.nth(roots, sel, nth) != null) return JSONObject().put("swipes", swipes)
+                break
+            }
             scrollOnce(roots, dir)
             swipes++
             delay(450)
         }
         val elapsed = Math.round((System.currentTimeMillis() - t0) / 100.0) / 10.0
         throw CmdError("NOT_FOUND", mapOf("target" to sel.describe(), "timeout" to secText(elapsed), "screen" to svc().screenText(), "swipes" to swipes))
+    }
+
+    /** A match can show only a few pixels at the list's edge; ask the list to bring all of it on screen. */
+    private suspend fun showWhole(n: UiNode, roots: List<UiNode>, vertical: Boolean) {
+        val list = Matcher.mainScrollable(roots)?.bounds ?: return
+        val inside = if (vertical) n.bounds.t > list.t && n.bounds.b < list.b else n.bounds.l > list.l && n.bounds.r < list.r
+        if (inside) return
+        if (act(n, AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)) delay(350)
     }
 
     private suspend fun scrollOnce(roots: List<UiNode>, dir: String) {
@@ -192,10 +224,12 @@ object UiCommands {
         val node = Matcher.editableTarget(await(sel, nth(p), timeoutSec(p)))
         val before = currentText(node)
         val wanted = if (append) before + text else text
+        val setAt = System.currentTimeMillis()
         if (setText(node, wanted)) {
             val after = currentText(node)
             // Some fields return true but ignore the action; those fall through to the keyboard.
             if (node.password || after != before || before == wanted) {
+                awaitRedraw(node.pkg, setAt)
                 return JSONObject().put("via", "set_text").put("ms", System.currentTimeMillis() - t0)
             }
         }
@@ -207,11 +241,19 @@ object UiCommands {
         return JSONObject().put("via", "ime").put("ms", System.currentTimeMillis() - t0)
     }
 
+    /** Until the app reports the change, the screen tree still holds the old text, so a read right after would see it. */
+    private suspend fun awaitRedraw(pkg: String, since: Long) {
+        val deadline = System.currentTimeMillis() + 1000
+        while (svc().lastChangeAt(pkg) < since && System.currentTimeMillis() < deadline) delay(30)
+    }
+
     suspend fun clear(p: JSONObject): JSONObject {
         val t0 = System.currentTimeMillis()
         val sel = selector("clear", p)
         val node = Matcher.editableTarget(await(sel, nth(p), timeoutSec(p)))
+        val setAt = System.currentTimeMillis()
         if (setText(node, "") && (node.password || currentText(node).isEmpty())) {
+            awaitRedraw(node.pkg, setAt)
             return JSONObject().put("ms", System.currentTimeMillis() - t0)
         }
         val kb = DroidKeyboard.current(svc()) ?: throw CmdError("NO_IME")
@@ -290,12 +332,13 @@ object UiCommands {
         val arr = p.optJSONArray("candidates") ?: throw CmdError.badArgs("which", "candidates must be a list of [by, value] pairs")
         val sels = (0 until arr.length()).map { i ->
             val item = arr.get(i)
+            if (item is JSONObject && !item.has("by")) return@map query("which", item)
             val (by, v) = when (item) {
                 is JSONArray -> item.optString(0) to item.opt(1)
                 is JSONObject -> item.optString("by") to item.opt("value")
-                else -> throw CmdError.badArgs("which", "candidate $i must be [by, value]")
+                else -> throw CmdError.badArgs("which", "candidate $i must be [by, value] or a query object")
             }
-            if (by !in Selector.KINDS || v !is String) throw CmdError.badArgs("which", "candidate $i must be [by, value]")
+            if (by !in Selector.KINDS || v !is String) throw CmdError.badArgs("which", "candidate $i must be [by, value] or a query object")
             Selector(by, v)
         }
         val deadline = System.currentTimeMillis() + (timeoutSec(p) * 1000).toLong()
@@ -312,6 +355,43 @@ object UiCommands {
         val t0 = System.currentTimeMillis()
         await(selector("wait", p), nth(p), timeoutSec(p))
         return JSONObject().put("ms", System.currentTimeMillis() - t0)
+    }
+
+    /** Waits until the app in front has drawn nothing new for `ms`; status bar and keyboard changes do not count. */
+    suspend fun waitIdle(p: JSONObject): JSONObject {
+        val t0 = System.currentTimeMillis()
+        val quiet = p.optLong("ms", 500).coerceIn(50, 60_000)
+        val timeout = timeoutSec(p)
+        val deadline = t0 + (timeout * 1000).toLong()
+        val s = svc()
+        // Slide-in transitions move nodes without sending events (seen on Android 15), so positions count too.
+        var layout = Matcher.signature(s.selectorRoots())
+        var layoutAt = t0
+        while (true) {
+            val pkg = s.current().first
+            val now = Matcher.signature(s.selectorRoots())
+            if (now != layout) { layout = now; layoutAt = System.currentTimeMillis() }
+            val since = System.currentTimeMillis() - maxOf(s.lastChangeAt(pkg), layoutAt)
+            if (since >= quiet) return JSONObject().put("ms", System.currentTimeMillis() - t0)
+            if (System.currentTimeMillis() >= deadline) {
+                throw CmdError("TIMEOUT", mapOf("cmd" to "wait_idle", "timeout" to secText(timeout)))
+            }
+            delay(minOf(POLL_MS, quiet - since).coerceAtLeast(20))
+        }
+    }
+
+    suspend fun find(p: JSONObject): JSONObject = value(await(selector("find", p), nth(p), timeoutSec(p)).toJson(children = false))
+
+    suspend fun findAll(p: JSONObject): JSONObject {
+        val sel = selector("find_all", p)
+        val deadline = System.currentTimeMillis() + (timeoutSec(p, 0.0) * 1000).toLong()
+        while (true) {
+            val found = Matcher.findAll(svc().selectorRoots(), sel)
+            if (found.isNotEmpty() || System.currentTimeMillis() >= deadline) {
+                return value(JSONArray().also { a -> found.forEach { a.put(it.toJson(children = false)) } })
+            }
+            delay(POLL_MS)
+        }
     }
 
     suspend fun waitGone(p: JSONObject): JSONObject {

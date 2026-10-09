@@ -72,13 +72,18 @@ object Agent {
         .put("agent", version)
         .put("route", route)
         .put("lang", Locale.getDefault().language)
-        .put("ready", Readiness.compute(app).also { ready.value = it }.toJson())
+        .put("ready", snapshotReady().toJson())
 
     fun onConnected() {
         refreshReady()
     }
 
-    /** Recomputes the ready flags and sends a `state` event when they changed. */
+    /**
+     * Recomputes the ready flags and sends a `state` event when they changed. The accessibility
+     * service, the keyboard, the listener and the link all call this from their own threads, so
+     * computing and sending happen under one lock: otherwise an older result can be sent last.
+     */
+    @Synchronized
     fun refreshReady() {
         if (!::app.isInitialized) return
         val now = Readiness.compute(app)
@@ -86,4 +91,7 @@ object Agent {
         ready.value = now
         emit(JSONObject().put("event", "state").put("ready", now.toJson()))
     }
+
+    @Synchronized
+    private fun snapshotReady(): Ready = Readiness.compute(app).also { ready.value = it }
 }

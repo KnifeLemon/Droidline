@@ -38,7 +38,11 @@ class CommandSpec(root: JSONObject) {
                     name = ref ?: p.getString("name"),
                     type = def.optString("type"),
                     required = def.optBoolean("required", false),
-                    default = if (def.has("default")) def.get("default") else null,
+                    default = when {
+                        p.has("default") -> p.get("default")
+                        def.has("default") -> def.get("default")
+                        else -> null
+                    },
                     clientOnly = def.optBoolean("client_only", false),
                 )
             }
@@ -98,13 +102,18 @@ class CommandSpec(root: JSONObject) {
 
     fun missingRequired(cmd: JSONObject): String? {
         val spec = deviceCommand(cmd.optString("cmd")) ?: batchOnly[cmd.optString("cmd")] ?: return null
-        return spec.wireParams.firstOrNull { it.required && !cmd.has(it.name) }?.name
+        spec.wireParams.firstOrNull { it.required && !cmd.has(it.name) }?.let { return it.name }
+        // value is needed only when by names a field; a query object stands alone.
+        val takesValue = spec.params.any { it.name == "by" } && spec.params.any { it.name == "value" }
+        if (takesValue && cmd.opt("by") is String && !cmd.has("value")) return "value"
+        return null
     }
 
     /** True when running [cmd] cuts the phone's own link; for a batch, when any step does. */
     fun cutsNetwork(cmd: JSONObject): Boolean {
         val name = cmd.optString("cmd")
         if (name == "batch") {
+            if (cmd.optBoolean("cuts_network", false)) return true
             val steps = cmd.optJSONArray("steps") ?: return false
             return (0 until steps.length()).any { i ->
                 runCatching { cutsNetwork(normalize(steps.get(i), inBatch = true)) }.getOrDefault(false)

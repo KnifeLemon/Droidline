@@ -89,7 +89,7 @@ class MatcherTest {
         val o = root.toJson()
         val expected = setOf(
             "text", "id", "desc", "class", "package", "bounds", "clickable", "long_clickable", "checkable", "checked",
-            "enabled", "focused", "selected", "scrollable", "editable", "password", "children",
+            "enabled", "focused", "selected", "scrollable", "editable", "password", "visible", "children",
         )
         assertEquals(expected, o.keys().asSequence().toSet())
         val loginJson = o.getJSONArray("children").getJSONObject(1).getJSONArray("children").getJSONObject(0)

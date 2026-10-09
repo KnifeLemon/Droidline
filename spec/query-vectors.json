@@ -1,0 +1,75 @@
+{
+  "comment": "Selector cases shared by the Go matcher (spec/query_test.go) and the Kotlin matcher (agent QueryVectorsTest). expect lists the bounds of the matches in order.",
+  "tree": {
+    "class": "android.widget.FrameLayout", "bounds": [0, 0, 1080, 2400],
+    "children": [
+      { "class": "android.widget.TextView", "text": "설정", "id": "com.android.settings:id/title_bar", "bounds": [0, 0, 1080, 150] },
+      { "class": "android.widget.EditText", "desc": "검색", "id": "com.android.settings:id/search", "editable": true, "clickable": true, "bounds": [40, 160, 1040, 260] },
+      { "class": "androidx.recyclerview.widget.RecyclerView", "bounds": [0, 300, 1080, 2100],
+        "children": [
+          { "class": "android.widget.LinearLayout", "clickable": true, "bounds": [0, 300, 1080, 500],
+            "children": [
+              { "class": "android.widget.LinearLayout", "bounds": [40, 320, 800, 480],
+                "children": [
+                  { "class": "android.widget.TextView", "text": "Wi-Fi", "id": "android:id/title", "bounds": [40, 330, 400, 380] },
+                  { "class": "android.widget.TextView", "text": "연결됨", "id": "android:id/summary", "bounds": [40, 390, 400, 440] }
+                ] },
+              { "class": "android.widget.Switch", "checkable": true, "checked": true, "clickable": true, "bounds": [900, 360, 1040, 440] }
+            ] },
+          { "class": "android.widget.LinearLayout", "clickable": true, "bounds": [0, 500, 1080, 700],
+            "children": [
+              { "class": "android.widget.LinearLayout", "bounds": [40, 520, 800, 680],
+                "children": [
+                  { "class": "android.widget.TextView", "text": "Bluetooth", "id": "android:id/title", "bounds": [40, 530, 400, 580] },
+                  { "class": "android.widget.TextView", "text": "사용 안함", "id": "android:id/summary", "bounds": [40, 590, 400, 640] }
+                ] },
+              { "class": "android.widget.Switch", "checkable": true, "checked": false, "clickable": true, "bounds": [900, 560, 1040, 640] }
+            ] },
+          { "class": "android.widget.LinearLayout", "clickable": true, "bounds": [0, 700, 1080, 900],
+            "children": [
+              { "class": "android.widget.TextView", "text": "저장용량", "id": "android:id/title", "bounds": [40, 730, 400, 780] },
+              { "class": "android.widget.TextView", "text": "저장용량 72% 사용", "id": "android:id/summary", "bounds": [40, 790, 500, 840] }
+            ] },
+          { "class": "android.widget.TextView", "text": "디스플레이", "visible": false, "bounds": [40, 2130, 400, 2100] }
+        ] },
+      { "class": "android.widget.Button", "text": "취소", "clickable": true, "bounds": [80, 2200, 480, 2350] },
+      { "class": "android.widget.Button", "text": "확인", "clickable": true, "bounds": [600, 2200, 1000, 2350] }
+    ]
+  },
+  "cases": [
+    { "name": "exact text", "by": "text", "value": "Wi-Fi", "expect": [[40, 330, 400, 380]] },
+    { "name": "regex is a full match", "by": "textMatches", "value": "저장.*", "expect": [[40, 730, 400, 780], [40, 790, 500, 840]] },
+    { "name": "regex does not match part of the text", "by": "textMatches", "value": "저장", "expect": [] },
+    { "name": "class is exact", "by": "class", "value": "android.widget.Switch", "expect": [[900, 360, 1040, 440], [900, 560, 1040, 640]] },
+    { "name": "bare id name", "by": "id", "value": "title", "expect": [[40, 330, 400, 380], [40, 530, 400, 580], [40, 730, 400, 780]] },
+    { "name": "two conditions", "query": { "class": "android.widget.Button", "text": "확인" }, "expect": [[600, 2200, 1000, 2350]] },
+    { "name": "flag and class", "query": { "class": "android.widget.Switch", "checked": true }, "expect": [[900, 360, 1040, 440]] },
+    { "name": "same row in a list that fits on screen, with a clickable switch", "query": { "checkable": true, "row": { "text": "Wi-Fi" } }, "expect": [[900, 360, 1040, 440]] },
+    { "name": "same row", "query": { "class": "android.widget.Switch", "row": { "text": "Bluetooth" } }, "expect": [[900, 560, 1040, 640]] },
+    { "name": "has a descendant", "query": { "clickable": true, "has": { "text": "Wi-Fi" } }, "expect": [[0, 300, 1080, 500]] },
+    { "name": "inside an ancestor", "query": { "text": "연결됨", "inside": { "clickable": true } }, "expect": [[40, 390, 400, 440]] },
+    { "name": "right of", "query": { "class": "android.widget.Button", "right_of": { "text": "취소" } }, "expect": [[600, 2200, 1000, 2350]] },
+    { "name": "left of", "query": { "class": "android.widget.Button", "left_of": { "text": "확인" } }, "expect": [[80, 2200, 480, 2350]] },
+    { "name": "below, nearest first", "query": { "id": "summary", "below": { "text": "Wi-Fi" } }, "expect": [[40, 390, 400, 440], [40, 590, 400, 640], [40, 790, 500, 840]] },
+    { "name": "above", "query": { "text": "Bluetooth", "above": { "text": "저장용량" } }, "expect": [[40, 530, 400, 580]] },
+    { "name": "editable below a title", "query": { "editable": true, "below": { "text": "설정" } }, "expect": [[40, 160, 1040, 260]] },
+    { "name": "exact bounds", "query": { "bounds": [900, 560, 1040, 640] }, "expect": [[900, 560, 1040, 640]] },
+    { "name": "missing anchor matches nothing", "query": { "class": "android.widget.Button", "below": { "text": "없음" } }, "expect": [] },
+    { "name": "a short class name is not enough", "by": "class", "value": "Switch", "expect": [] },
+    { "name": "regex on class for short names", "query": { "class": "android.widget.Switch", "row": { "textMatches": "Blue.*" } }, "expect": [[900, 560, 1040, 640]] },
+    { "name": "nothing matches", "query": { "text": "없음" }, "expect": [] },
+    { "name": "an item past the list edge still matches", "by": "text", "value": "디스플레이", "expect": [[40, 2130, 400, 2100]] },
+    { "name": "visible true skips it", "query": { "text": "디스플레이", "visible": true }, "expect": [] },
+    { "name": "visible false finds it", "query": { "visible": false }, "expect": [[40, 2130, 400, 2100]] },
+    { "name": "elements without the field count as visible", "query": { "text": "Wi-Fi", "visible": true }, "expect": [[40, 330, 400, 380]] }
+  ],
+  "invalid": [
+    {},
+    { "txt": "a" },
+    { "text": 1 },
+    { "clickable": "yes" },
+    { "bounds": [1, 2] },
+    { "has": "Wi-Fi" },
+    { "row": {} }
+  ]
+}

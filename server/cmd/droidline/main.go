@@ -27,6 +27,7 @@ type globals struct {
 	addr    string
 	token   string
 	device  string
+	lease   string
 	home    string
 	json    bool
 	verbose bool
@@ -60,6 +61,10 @@ func main() {
 		err = cmdWebhook(g, args[1:])
 	case "mcp":
 		err = mcp.Run(mcp.Options{Addr: g.addr, Token: g.token, Device: g.device, Home: g.home})
+	case "webdriver":
+		err = cmdWebDriver(g, args[1:])
+	case "inspect":
+		err = cmdInspect(g, args[1:])
 	case "doctor":
 		err = cmdDoctor(g)
 	case "version", "--version", "-v":
@@ -88,6 +93,7 @@ func parseGlobals(in []string) (globals, []string) {
 		addr:   envOr("DROIDLINE_ADDR", "127.0.0.1:"+envOr("DROIDLINE_PORT", "8780")),
 		token:  os.Getenv("DROIDLINE_TOKEN"),
 		device: os.Getenv("DROIDLINE_DEVICE"),
+		lease:  os.Getenv("DROIDLINE_LEASE"),
 		home:   store.DefaultDir(),
 	}
 	if h := os.Getenv("DROIDLINE_HOST"); h != "" {
@@ -113,6 +119,8 @@ func parseGlobals(in []string) (globals, []string) {
 			g.token = val()
 		case "--device", "-d":
 			g.device = val()
+		case "--lease":
+			g.lease = val()
 		case "--home":
 			g.home = val()
 		case "--json":
@@ -174,6 +182,13 @@ func cmdDevice(g globals, args []string) error {
 		return usageErr{fmt.Sprintf("%v\nusage: %s", err, signature(cmd, aliasBy, name))}
 	}
 	if g.device != "" && cmd.Scope == "device" || (cmd.Name == "wait_notification" && g.device != "") {
+		req["device"] = g.device
+	}
+	if g.lease != "" && cmd.Scope == "device" {
+		req["lease"] = g.lease
+	}
+	// lease and release take device as a parameter, so -d reaches them too.
+	if _, set := req["device"]; !set && g.device != "" && cmd.Scope == "server" && cmd.Param("device") != nil {
 		req["device"] = g.device
 	}
 	res, err := call(g, req)
@@ -251,6 +266,10 @@ func buildRequest(sp *spec.Spec, cmd *spec.Command, aliasBy, name string, args [
 			continue
 		}
 		order = append(order, p)
+	}
+	// A query object in by replaces value, so the next argument fills the param after it.
+	if len(positional) > 0 && len(order) > 1 && order[0].Name == "by" && order[1].Name == "value" && strings.HasPrefix(strings.TrimSpace(positional[0]), "{") {
+		order = append(order[:1:1], order[2:]...)
 	}
 	for i := 0; i < len(positional); i++ {
 		if i >= len(order) {
@@ -434,6 +453,9 @@ func cmdDevices(g globals) error {
 			state := "offline"
 			if d["online"] == true {
 				state = "online"
+			}
+			if d["leased"] == true {
+				state += ",leased"
 			}
 			var missing []string
 			if r, ok := d["ready"].(map[string]any); ok {

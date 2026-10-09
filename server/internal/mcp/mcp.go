@@ -27,11 +27,11 @@ var versions = []string{"2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"}
 
 const instructions = `Droidline controls Android phones. Work like this:
 1. Call dump to see the current screen as a tree. Each element has text, id and desc.
-2. Act on elements with touch, input, long_touch or scroll_to, passing by ("text", "id", "desc", "textContains", "descContains", "class") and the value from the dump. These wait up to 10 s for the element and fall back to a coordinate tap by themselves, so do not add waits.
+2. Act on elements with touch, input, long_touch or scroll_to, passing by ("text", "id", "desc", "textContains", "descContains", "class") and the value from the dump. When one field is not enough, pass a query object as by instead, such as {"class": "android.widget.Switch", "row": {"text": "Wi-Fi"}}, and leave value out. These wait up to 10 s for the element and fall back to a coordinate tap by themselves, so do not add waits.
 3. Use tap(x, y) only for screens without elements, such as games.
 4. Branch with exists, which, checked, get_text, in_app: they answer at once and never fail when the element is missing.
 5. If more than one phone is online, pass device (an ID or name from devices).
-Commands that turn off data, Wi-Fi or turn on airplane mode return accepted first; pass wait=true to get the final result.`
+To turn off the phone's network (Wi-Fi, mobile data, airplane mode), open the Settings screen with intent, then put the taps that turn it off and on again in one batch with cuts_network=true and wait=true, because the phone cannot hear commands while it is offline.`
 
 type rpc struct {
 	JSONRPC string          `json:"jsonrpc"`
@@ -206,7 +206,7 @@ func (s *session) tools() []any {
 		}
 		tool := map[string]any{"name": toolName(c.Name), "description": desc, "inputSchema": schema}
 		readOnly := c.Condition || c.Group == "check" || c.Group == "screen" || c.Name == "devices" || c.Name == "info"
-		destructive := c.Macro || c.Name == "proxy" || c.Name == "batch"
+		destructive := c.Name == "clear_data" || c.Name == "proxy" || c.Name == "batch"
 		tool["annotations"] = map[string]any{"readOnlyHint": readOnly, "destructiveHint": destructive, "openWorldHint": false}
 		out = append(out, tool)
 	}
@@ -229,8 +229,10 @@ func (s *session) schema(p spec.Param) map[string]any {
 	case "bool":
 		m["type"] = "boolean"
 	case "selector":
-		m["type"] = "string"
-		m["enum"] = s.sp.SelectorNames()
+		m["anyOf"] = []any{
+			map[string]any{"type": "string", "enum": s.sp.SelectorNames()},
+			map[string]any{"type": "object", "description": "A query: several conditions on one element, for example {\"text\": \"OK\", \"clickable\": true}. Leave value out."},
+		}
 	case "int|string":
 		m["type"] = []string{"integer", "string"}
 	case "string|null":
@@ -242,7 +244,13 @@ func (s *session) schema(p spec.Param) map[string]any {
 		m["items"] = map[string]any{"type": "string"}
 	case "list<selector_pair>":
 		m["type"] = "array"
-		m["items"] = map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 2, "maxItems": 2}
+		m["items"] = map[string]any{"anyOf": []any{
+			map[string]any{"type": "array", "items": map[string]any{"type": "string"}, "minItems": 2, "maxItems": 2},
+			map[string]any{"type": "object"},
+		}}
+	case "image":
+		m["type"] = "string"
+		m["description"] = desc + " Pass the PNG or JPEG as base64."
 	case "list<step>":
 		m["type"] = "array"
 		m["items"] = map[string]any{"anyOf": []any{map[string]any{"type": "array"}, map[string]any{"type": "object"}}}

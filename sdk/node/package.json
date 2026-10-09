@@ -1,6 +1,6 @@
 {
   "name": "droidline",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Control Android phones from Node.js with one-line commands, without ADB.",
   "license": "MIT",
   "type": "module",
@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     },
     "./package.json": "./package.json"
   },

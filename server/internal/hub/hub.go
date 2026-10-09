@@ -60,6 +60,7 @@ type Hub struct {
 	waiters  map[*notifWaiter]struct{}
 	webhooks *webhookSender
 	ports    [2]int
+	leases   leaseTable
 }
 
 type pendingPair struct {

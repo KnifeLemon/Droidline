@@ -49,21 +49,14 @@ class CommandSpecTest {
     }
 
     @Test
-    fun networkCuttingFollowsCutsNetwork() {
-        fun cmd(name: String, on: Boolean) = JSONObject().put("cmd", name).put("on", on)
-        assertTrue(spec.cutsNetwork(cmd("data", false)))
-        assertFalse(spec.cutsNetwork(cmd("data", true)))
-        assertTrue(spec.cutsNetwork(cmd("wifi", false)))
-        assertTrue(spec.cutsNetwork(cmd("airplane", true)))
-        assertFalse(spec.cutsNetwork(cmd("airplane", false)))
+    fun networkCuttingIsTheBatchsOwnFlag() {
         assertFalse(spec.cutsNetwork(JSONObject().put("cmd", "touch")))
-        val batch = JSONObject().put("cmd", "batch").put("steps", JSONArray()
-            .put(JSONObject().put("cmd", "airplane").put("on", true))
+        val steps = JSONArray()
+            .put(JSONArray().put("touch").put("text").put("Wi-Fi"))
             .put(JSONArray().put("sleep").put(3000))
-            .put(JSONArray().put("airplane").put(false)))
-        assertTrue(spec.cutsNetwork(batch))
-        val harmless = JSONObject().put("cmd", "batch").put("steps", JSONArray().put(JSONArray().put("home")))
-        assertFalse(spec.cutsNetwork(harmless))
+            .put(JSONArray().put("touch").put("text").put("Wi-Fi"))
+        assertFalse(spec.cutsNetwork(JSONObject().put("cmd", "batch").put("steps", steps)))
+        assertTrue(spec.cutsNetwork(JSONObject().put("cmd", "batch").put("steps", steps).put("cuts_network", true)))
     }
 
     @Test

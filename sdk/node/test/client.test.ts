@@ -3,7 +3,8 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, test } from "node:test";
-import { connect, Droidline, DroidlineError, type Notification } from "../src/index.js";
+import { connect, Droidline, DroidlineError, lease, type Notification } from "../src/index.js";
+import { formatHistory } from "../src/testing.js";
 import { FakeServer, PNG_BYTES, freePort, waitUntil, withoutId, type FakeConn, type Msg } from "./fake-server.js";
 
 let server: FakeServer;
@@ -80,7 +81,7 @@ test("events interleaved with responses", async () => {
     if (msg.cmd !== "touch") return server.default(conn, msg);
     conn.send({ event: "screen", device: "a1b2c3d4", package: "com.kakao.talk" });
     // A late result for an older request carries an id too; it must not resolve this call.
-    conn.send({ event: "result", id: msg.id, ok: true, via: "settings_macro" });
+    conn.send({ event: "result", id: msg.id, ok: true, results: [] });
     conn.reply(msg, { via: "node", ms: 5 });
     conn.send({ event: "toast", device: "a1b2c3d4", text: "저장됨" });
   };
@@ -205,36 +206,35 @@ test("which and batch send pairs and steps as arrays", async () => {
   assert.equal(await d.which([["text", "로그인"], ["id", "x"]], { timeout: 10 }), 1);
   assert.deepEqual(server.sentParams("which"), { cmd: "which", candidates: [["text", "로그인"], ["id", "x"]], timeout: 10 });
 
-  await d.batch([["airplane", true], ["sleep", 3000], ["airplane", false]]);
+  await d.batch([["touch", "text", "Wi-Fi"], ["sleep", 3000], ["touch", "text", "Wi-Fi"]]);
   assert.deepEqual(server.sentParams("batch"), {
     cmd: "batch",
-    steps: [["airplane", true], ["sleep", 3000], ["airplane", false]],
+    steps: [["touch", "text", "Wi-Fi"], ["sleep", 3000], ["touch", "text", "Wi-Fi"]],
   });
 });
 
-test("wait flag on network-cutting commands", async () => {
+test("wait flag on network-cutting batches", async () => {
   server.handler = (conn, msg) => {
-    if (msg.cmd !== "airplane") return server.default(conn, msg);
-    if (msg.wait) conn.reply(msg, { via: "settings_macro", ms: 2300 });
+    if (msg.cmd !== "batch") return server.default(conn, msg);
+    if (msg.wait) conn.reply(msg, { results: [{ ok: true }] });
     else {
       conn.reply(msg, { accepted: true });
-      conn.send({ event: "result", id: msg.id, device: "a1b2c3d4", ok: true, via: "settings_macro" });
+      conn.send({ event: "result", id: msg.id, device: "a1b2c3d4", ok: true, results: [{ ok: true }] });
     }
   };
   const d = await open();
   const late: Msg[] = [];
   d.client.on("result", (e) => late.push(e));
+  const steps = [["touch", "text", "Wi-Fi"], ["sleep", 3000], ["touch", "text", "Wi-Fi"]];
 
-  assert.deepEqual(await d.airplane(true), { accepted: true });
-  assert.ok(!("wait" in server.last("airplane")));
+  assert.deepEqual(await d.batch(steps, { cuts_network: true }), { accepted: true });
+  assert.ok(!("wait" in server.last("batch")));
   await waitUntil(() => late.length === 1);
-  assert.equal(late[0].via, "settings_macro");
+  assert.deepEqual(late[0].results, [{ ok: true }]);
 
-  assert.deepEqual(await d.airplane(false, { wait: true }), { via: "settings_macro", ms: 2300 });
-  assert.deepEqual(server.sentParams("airplane"), { cmd: "airplane", on: false, wait: true });
-
-  await d.batch([["airplane", true], ["airplane", false]], { wait: true });
+  assert.deepEqual(await d.batch(steps, { cuts_network: true, wait: true }), { results: [{ ok: true }] });
   assert.equal(server.last("batch").wait, true);
+  assert.equal(server.last("batch").cuts_network, true);
 });
 
 test("token is sent as the first line", async () => {
@@ -287,11 +287,11 @@ test("reconnects after the server drops the connection", async () => {
 
 test("a call in flight fails with CONNECTION_LOST when the connection drops", async () => {
   server.handler = (conn, msg) => {
-    if (msg.cmd === "kill") conn.close();
+    if (msg.cmd === "launch") conn.close();
     else server.default(conn, msg);
   };
   const d = await open();
-  await assert.rejects(d.kill("com.kakao.talk"), (e: DroidlineError) => e.code === "CONNECTION_LOST");
+  await assert.rejects(d.launch("com.kakao.talk"), (e: DroidlineError) => e.code === "CONNECTION_LOST");
   assert.equal(await d.home(), undefined);
 });
 
@@ -354,4 +354,64 @@ test("close() on a connect() device closes the connection", async () => {
 test("server not running names droidline serve", async () => {
   const port = await freePort();
   await assert.rejects(connect({ port }), (e: DroidlineError) => e.code === "SERVER_NOT_RUNNING" && /droidline serve/.test(e.message));
+});
+
+const NODE = { text: "Wi-Fi", id: "android:id/title", desc: "", class: "android.widget.TextView", bounds: [40, 330, 400, 380], checked: false };
+
+test("query selectors, and input after a query", async () => {
+  const d = await open();
+  await d.touch({ text: "확인", clickable: true }, { timeout: 5 });
+  assert.deepEqual(server.sentParams("touch"), { cmd: "touch", by: { text: "확인", clickable: true }, timeout: 5 });
+  await d.input({ editable: true }, "knife");
+  assert.deepEqual(server.sentParams("input"), { cmd: "input", by: { editable: true }, text: "knife" });
+  await d.input("id", "email", "knife");
+  assert.deepEqual(server.sentParams("input"), { cmd: "input", by: "id", value: "email", text: "knife" });
+});
+
+test("find returns elements that act on themselves", async () => {
+  server.handler = (conn, msg) => {
+    if (msg.cmd === "find") conn.reply(msg, { value: NODE });
+    else if (msg.cmd === "find_all") conn.reply(msg, { value: [NODE, { ...NODE, text: "Bluetooth" }] });
+    else server.default(conn, msg);
+  };
+  const d = await open();
+  const el = await d.find("text", "Wi-Fi");
+  assert.deepEqual([el.text, el.id, el.className, el.center], ["Wi-Fi", "android:id/title", "android.widget.TextView", [220, 355]]);
+  await el.click();
+  assert.deepEqual(server.sentParams("touch"), { cmd: "touch", by: { bounds: [40, 330, 400, 380], class: "android.widget.TextView" }, timeout: 0 });
+  await el.find("id", "summary");
+  assert.deepEqual(server.sentParams("find").by, { id: "summary", inside: { bounds: [40, 330, 400, 380], class: "android.widget.TextView" } });
+  assert.deepEqual((await d.findAll("id", "title")).map((e) => e.text), ["Wi-Fi", "Bluetooth"]);
+});
+
+test("lease carries the lease, release gives it back, history records calls", async () => {
+  server.handler = (conn, msg) => {
+    if (msg.cmd === "lease") conn.reply(msg, { lease: "l-1", device: "a1b2c3d4", name: "shelf-01", ttl: 300 });
+    else if (msg.cmd === "exists") conn.send({ id: msg.id, ok: false, error: "NOT_FOUND", msg: "not there" });
+    else server.default(conn, msg);
+  };
+  const d = await lease({ port: server.port, wait: 5 });
+  await d.home();
+  assert.deepEqual(server.sentParams("home"), { cmd: "home", device: "a1b2c3d4", lease: "l-1" });
+  await assert.rejects(d.exists("text", "x"));
+  const log = d.history;
+  assert.equal(log.at(-2)?.cmd, "home");
+  assert.equal(log.at(-1)?.error, "NOT_FOUND");
+  assert.match(formatHistory(log), /home \{\} -> ok/);
+  await d.release();
+  assert.deepEqual(server.sentParams("release"), { cmd: "release", lease: "l-1" });
+  d.close();
+});
+
+test("image params take a file path or bytes", async () => {
+  const d = await open();
+  const dir = await mkdtemp(join(tmpdir(), "dl-"));
+  const file = join(dir, "button.png");
+  await (await import("node:fs/promises")).writeFile(file, PNG_BYTES);
+  await d.findImage(file, { threshold: 0.8 });
+  const sent = server.sentParams("find_image");
+  assert.equal(sent.image, Buffer.from(PNG_BYTES).toString("base64"));
+  assert.equal(sent.threshold, 0.8);
+  await d.tap_image(PNG_BYTES);
+  assert.equal(server.sentParams("tap_image").image, sent.image);
 });

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import dev.droidline.agent.Agent
 import dev.droidline.agent.R
+import dev.droidline.agent.admin.DeviceOwner
 import dev.droidline.agent.link.LinkStatus
 import dev.droidline.agent.link.Phase
 import dev.droidline.agent.service.AgentService
@@ -56,6 +57,8 @@ fun StatusScreen(tick: Int) {
     var allowlist by remember(tick) { mutableStateOf(Agent.settings.notifyAllowlist) }
     var picking by remember { mutableStateOf(false) }
     var confirmUnpair by remember { mutableStateOf(false) }
+    var owner by remember(tick) { mutableStateOf(DeviceOwner.isOwner(ctx)) }
+    var confirmRelease by remember { mutableStateOf(false) }
     val latest = remember(tick) { Agent.settings.latestRelease }
     val latestUrl = remember(tick) { Agent.settings.latestReleaseUrl }
 
@@ -109,6 +112,14 @@ fun StatusScreen(tick: Int) {
             }
             OutlinedButton(onClick = { picking = true }) { Text(stringResource(R.string.btn_choose_apps)) }
         }
+
+        if (owner) {
+            Section {
+                Text(stringResource(R.string.owner_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.owner_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = { confirmRelease = true }) { Text(stringResource(R.string.btn_owner_release), color = MaterialTheme.colorScheme.error) }
+            }
+        }
     }
 
     if (picking) {
@@ -120,6 +131,21 @@ fun StatusScreen(tick: Int) {
                 allowlist = it
                 picking = false
             },
+        )
+    }
+
+    if (confirmRelease) {
+        AlertDialog(
+            onDismissRequest = { confirmRelease = false },
+            text = { Text(stringResource(R.string.owner_release_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRelease = false
+                    DeviceOwner.release(ctx)
+                    owner = DeviceOwner.isOwner(ctx)
+                }) { Text(stringResource(R.string.btn_owner_release)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmRelease = false }) { Text(stringResource(R.string.btn_cancel)) } },
         )
     }
 

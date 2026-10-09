@@ -131,8 +131,10 @@ With Claude Code: `claude mcp add droidline -- droidline mcp`. Other languages c
 - **A shelf of phones.** One PC drives many phones. Commands to one phone run in order, different phones run in parallel, and each phone has a name you choose.
 - **Per-app proxy.** Send chosen apps through a socks5 or http upstream with a local VPN, one upstream per phone, without root.
 - **Notifications on the PC.** Wait for one, react to every one, reply, open or dismiss it, or forward it to a signed webhook.
-- **New mobile IPs.** A `batch` runs on the phone while it is offline, so airplane mode on, wait, off works as one command.
+- **New mobile IPs.** A `batch` sent with `cuts_network` keeps running on the phone while it is offline, so airplane mode on, wait, off works as one call. `intent` opens the Settings page first; the [recipes](https://droidline.dev/docs/recipes/#settings-force-stop-clear-data-network-switches) show it step by step.
 - **Nothing runs twice.** A phone that drops off mobile data resumes where it left off; a command that was in flight is answered from the phone's cache, not run again.
+- **Selectors that hold up.** Combine conditions or name an element by its neighbors: `touch({"class": "android.widget.Switch", "row": {"text": "Wi-Fi"}})`. `find` hands back elements you can click and search inside, and `wait_idle` waits until the screen stops changing.
+- **Optional tools, off until you start them.** `droidline inspect` shows the screen and its elements, suggests selectors with code, and records a script while you use the phone. `droidline webdriver` lets Appium clients and scripts drive your phones. There is also a pytest plugin, leases for sharing phones between scripts, and picture and text matching for screens without elements.
 - **English, 한국어, 简体中文** in the app, the error messages and the docs.
 
 ## Screenshots
@@ -169,7 +171,7 @@ Droidline only uses permissions an ordinary app can get, so some things are out 
 
 - It cannot open another app's screens that the app does not export. `launch` opens the start screen instead.
 - It cannot unlock a PIN, pattern or password lock screen.
-- Force stop, clear data and the network switches work by pressing buttons in Settings. They take a few seconds, and labels differ between brands.
+- There is no single command to force stop an app, clear its data or switch the network. Settings differs by phone maker, Android version and language, so the [recipes](https://droidline.dev/docs/recipes/#settings-force-stop-clear-data-network-switches) press its buttons, and you may need to adjust the labels for your phone. In the optional device owner mode, `clear_data` wipes app data directly.
 - Games and some custom-drawn apps expose no elements. Use `tap` with coordinates and `color(x, y)` there.
 - Android 15 and later hide one-time codes in notifications from apps. You learn that a code arrived and read it in the app.
 
@@ -183,6 +185,9 @@ The [full list](https://droidline.dev/docs/limitations/) explains each one.
 | Write a first script without a phone | [Your first script](https://droidline.dev/docs/tutorial/) |
 | Use my language | [Python](https://droidline.dev/docs/python/) · [Node.js](https://droidline.dev/docs/nodejs/) · [CLI](https://droidline.dev/docs/cli/) · [HTTP](https://droidline.dev/docs/http/) · [AI agents](https://droidline.dev/docs/ai-agents/) |
 | Find the right element on a screen | [Finding elements](https://droidline.dev/docs/finding-elements/) |
+| Point at elements, or record a script | [Inspector and recorder](https://droidline.dev/docs/inspector/) |
+| Run Appium scripts | [Appium and WebDriver](https://droidline.dev/docs/appium/) |
+| Test with pytest or Node.js | [Test frameworks](https://droidline.dev/docs/testing/) |
 | Copy a working pattern | [Recipes](https://droidline.dev/docs/recipes/) |
 | Look up a command | [Command reference](https://droidline.dev/docs/commands/) |
 | Reach phones on mobile data | [Remote phones](https://droidline.dev/docs/remote/) |
@@ -217,7 +222,7 @@ cd agent && ./gradlew assembleDebug testDebugUnitTest
 
 ## Contributing
 
-Pull requests are welcome; [CONTRIBUTING.md](CONTRIBUTING.md) explains how the spec, generator and tests fit together. The most useful contribution right now is a report from a real phone: which brand and Android version, and whether `kill`, `clear_data` and the network switches work. If Droidline saves you some taps, a ⭐ helps other people find it.
+Pull requests are welcome; [CONTRIBUTING.md](CONTRIBUTING.md) explains how the spec, generator and tests fit together. The most useful contribution right now is a report from a real phone: which brand and Android version, and whether the [Settings recipes](https://droidline.dev/docs/recipes/#settings-force-stop-clear-data-network-switches) for force stop, clearing data and the network switches work with its labels. If Droidline saves you some taps, a ⭐ helps other people find it.
 
 ## Status
 

@@ -30,6 +30,7 @@ class UiNode(
     val scrollable: Boolean = false,
     val editable: Boolean = false,
     val password: Boolean = false,
+    val visible: Boolean = true,
     val children: List<UiNode> = emptyList(),
     val handle: Any? = null,
 ) {
@@ -48,7 +49,7 @@ class UiNode(
 
     fun ancestors(): Sequence<UiNode> = generateSequence(parent) { it.parent }
 
-    fun toJson(): JSONObject = JSONObject()
+    fun toJson(children: Boolean = true): JSONObject = JSONObject()
         .put("text", if (password) "" else text)
         .put("id", id)
         .put("desc", desc)
@@ -65,38 +66,56 @@ class UiNode(
         .put("scrollable", scrollable)
         .put("editable", editable)
         .put("password", password)
-        .put("children", JSONArray().also { a -> children.forEach { a.put(it.toJson()) } })
+        .put("visible", visible)
+        .also { o -> if (children) o.put("children", JSONArray().also { a -> this.children.forEach { a.put(it.toJson()) } }) }
 }
 
-data class Selector(val by: String, val value: String) {
-    fun matches(n: UiNode): Boolean = when (by) {
-        "text" -> n.text == value
-        "textContains" -> n.text.contains(value)
-        "id" -> n.id == value || (!value.contains(':') && n.id.endsWith(":id/$value"))
-        "desc" -> n.desc == value
-        "descContains" -> n.desc.contains(value)
-        "class" -> n.cls == value
-        else -> false
+/** What an element command looks for: a field selector or a [Query]. */
+interface Target {
+    fun findAll(roots: List<UiNode>): List<UiNode>
+
+    /** The `target` field of NOT_FOUND and friends. */
+    fun describe(): String
+}
+
+data class Selector(val by: String, val value: String) : Target {
+    private val regex by lazy { Regex(value) }
+
+    fun matches(n: UiNode): Boolean = matchField(by, value, n) { regex }
+
+    override fun findAll(roots: List<UiNode>): List<UiNode> {
+        val out = ArrayList<UiNode>()
+        for (r in roots) r.walk { if (matches(it)) out += it }
+        return out
     }
 
-    /** The `target` field of NOT_FOUND and friends: `<by> '<value>'`. */
-    fun describe(): String = "$by '$value'"
+    override fun describe(): String = "$by '$value'"
 
     companion object {
-        val KINDS = setOf("text", "textContains", "id", "desc", "descContains", "class")
+        val KINDS = setOf("text", "textContains", "textMatches", "id", "desc", "descContains", "descMatches", "class")
+
+        /** One field condition, shared with [Query]. Regexes must match the whole field. */
+        fun matchField(by: String, value: String, n: UiNode, regex: () -> Regex): Boolean = when (by) {
+            "text" -> n.text == value
+            "textContains" -> n.text.contains(value)
+            "textMatches" -> regex().matches(n.text)
+            "id" -> n.id == value || (!value.contains(':') && n.id.endsWith(":id/$value"))
+            "desc" -> n.desc == value
+            "descContains" -> n.desc.contains(value)
+            "descMatches" -> regex().matches(n.desc)
+            "class" -> n.cls == value
+            "package" -> n.pkg == value
+            else -> false
+        }
     }
 }
 
 object Matcher {
-    fun findAll(roots: List<UiNode>, sel: Selector): List<UiNode> {
-        val out = ArrayList<UiNode>()
-        for (r in roots) r.walk { if (sel.matches(it)) out += it }
-        return out
-    }
+    fun findAll(roots: List<UiNode>, sel: Target): List<UiNode> = sel.findAll(roots)
 
-    fun nth(roots: List<UiNode>, sel: Selector, nth: Int): UiNode? = findAll(roots, sel).getOrNull(nth)
+    fun nth(roots: List<UiNode>, sel: Target, nth: Int): UiNode? = findAll(roots, sel).getOrNull(nth)
 
-    fun count(roots: List<UiNode>, sel: Selector): Int = findAll(roots, sel).size
+    fun count(roots: List<UiNode>, sel: Target): Int = findAll(roots, sel).size
 
     /** Nearest ancestor that accepts a click, used when the matched node itself refuses it. */
     fun clickableAncestor(n: UiNode): UiNode? = n.ancestors().firstOrNull { it.clickable && it.enabled }

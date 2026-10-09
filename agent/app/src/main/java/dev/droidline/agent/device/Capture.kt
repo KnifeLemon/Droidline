@@ -101,17 +101,32 @@ object Projection {
     private var display: VirtualDisplay? = null
     private var size = 0 to 0
     @Volatile private var pending: CompletableDeferred<Boolean>? = null
+    @Volatile private var askedAt = 0L
 
     val granted: Boolean get() = projection != null
 
+    /**
+     * Asks for screen capture once. A remembered consent comes back within a second; when Android
+     * shows its prompt instead, answer NO_PERMISSION soon, because the phone runs one command at a
+     * time and a long wait would block the very command that could press Start. The prompt stays
+     * up, and the next screenshot after someone accepts it works.
+     */
     suspend fun ensure(ctx: Context): Boolean {
         if (granted) return true
-        val wait = CompletableDeferred<Boolean>().also { pending = it }
-        withContext(Dispatchers.Main) {
-            ctx.startActivity(Intent(ctx, CaptureConsentActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        // Reuse a prompt that is still up; ask again if the last one was left unanswered for a minute.
+        val fresh = System.currentTimeMillis() - askedAt < PROMPT_REUSE_MS
+        val wait = pending?.takeIf { it.isActive && fresh } ?: CompletableDeferred<Boolean>().also {
+            pending = it
+            askedAt = System.currentTimeMillis()
+            withContext(Dispatchers.Main) {
+                ctx.startActivity(Intent(ctx, CaptureConsentActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
         }
-        return withTimeoutOrNull(60_000) { wait.await() } ?: false
+        return withTimeoutOrNull(CONSENT_WAIT_MS) { wait.await() } ?: false
     }
+
+    private const val CONSENT_WAIT_MS = 5_000L
+    private const val PROMPT_REUSE_MS = 60_000L
 
     fun onResult(ctx: Context, resultCode: Int, data: Intent?) {
         if (resultCode != Activity.RESULT_OK || data == null) {
@@ -141,6 +156,7 @@ object Projection {
         reader?.close()
         display = null
         reader = null
+        last = null
         projection?.stop()
         projection = null
         AgentService.instance?.setProjectionActive(false)
@@ -152,6 +168,7 @@ object Projection {
         val mp = projection ?: return
         val (w, h) = DeviceCommands.screenSize(ctx)
         if (display != null && size == (w to h)) return
+        last = null
         display?.release()
         reader?.close()
         val r = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2)
@@ -163,10 +180,14 @@ object Projection {
         size = w to h
     }
 
+    /**
+     * The virtual display only delivers a frame when the screen changes, so a still screen
+     * gets the last frame again after a short wait instead of no frame at all.
+     */
     suspend fun grab(ctx: Context): Bitmap? {
         prepare(ctx)
-        val deadline = System.currentTimeMillis() + 2000
-        while (System.currentTimeMillis() < deadline) {
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < 2000) {
             val img = synchronized(this) { reader?.acquireLatestImage() }
             if (img != null) {
                 img.use {
@@ -174,13 +195,20 @@ object Projection {
                     val padding = plane.rowStride - plane.pixelStride * it.width
                     val raw = Bitmap.createBitmap(it.width + padding / plane.pixelStride, it.height, Bitmap.Config.ARGB_8888)
                     raw.copyPixelsFromBuffer(plane.buffer)
-                    return if (padding == 0) raw else Bitmap.createBitmap(raw, 0, 0, it.width, it.height)
+                    val frame = if (padding == 0) raw else Bitmap.createBitmap(raw, 0, 0, it.width, it.height)
+                    last = frame
+                    return frame
                 }
             }
-            delay(100)
+            val previous = last
+            if (previous != null && System.currentTimeMillis() - start >= STILL_MS) return previous
+            delay(50)
         }
         return null
     }
+
+    @Volatile private var last: Bitmap? = null
+    private const val STILL_MS = 300L
 }
 
 /** Asks once for screen capture permission on Android 9 and 10. */

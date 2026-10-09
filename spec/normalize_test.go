@@ -140,17 +140,21 @@ func TestWhichAndBatch(t *testing.T) {
 
 	s := MustLoad()
 	c, got, err := s.Normalize("batch", map[string]any{"steps": []any{
-		[]any{"airplane", true}, []any{"sleep", 3000.0}, map[string]any{"cmd": "airplane", "on": false},
+		[]any{"touch", "text", "Wi-Fi"}, []any{"sleep", 3000.0}, map[string]any{"cmd": "touch", "by": "text", "value": "Wi-Fi"},
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	steps := got["steps"].([]any)
-	if steps[0].(map[string]any)["on"] != true || steps[1].(map[string]any)["ms"] != int64(3000) || steps[2].(map[string]any)["cmd"] != "airplane" {
+	if steps[0].(map[string]any)["value"] != "Wi-Fi" || steps[1].(map[string]any)["ms"] != int64(3000) || steps[2].(map[string]any)["cmd"] != "touch" {
 		t.Fatalf("steps %v", steps)
 	}
+	if s.CutsNetwork(c, got) {
+		t.Fatal("a batch cuts the network only when it says so")
+	}
+	got["cuts_network"] = true
 	if !s.CutsNetwork(c, got) {
-		t.Fatal("airplane(true) in a batch cuts the network")
+		t.Fatal("cuts_network is ignored")
 	}
 	if !strings.Contains(normErr(t, "batch", map[string]any{"steps": []any{[]any{"devices"}}}), "cannot run inside a batch") {
 		t.Fatal("server commands are not batch steps")
@@ -183,5 +187,50 @@ func TestDeviceAsParameter(t *testing.T) {
 	got = norm(t, "back", map[string]any{"cmd": "back", "device": "shelf-01"})
 	if _, ok := got["device"]; ok {
 		t.Fatalf("back kept the envelope device: %v", got)
+	}
+}
+
+func TestQuerySelectors(t *testing.T) {
+	got := norm(t, "touch", map[string]any{"cmd": "touch", "by": map[string]any{"text": "확인", "clickable": true}})
+	if q, ok := got["by"].(map[string]any); !ok || q["text"] != "확인" || q["clickable"] != true {
+		t.Errorf("query not kept: %#v", got["by"])
+	}
+	if _, ok := got["value"]; ok {
+		t.Errorf("value should stay unset for a query")
+	}
+	if msg := normErr(t, "touch", map[string]any{"cmd": "touch", "by": map[string]any{"text": "a"}, "value": "b"}); !strings.Contains(msg, "query object") {
+		t.Errorf("unexpected error %q", msg)
+	}
+	if msg := normErr(t, "touch", map[string]any{"cmd": "touch", "by": "text"}); !strings.Contains(msg, `"value"`) {
+		t.Errorf("unexpected error %q", msg)
+	}
+	if msg := normErr(t, "touch", map[string]any{"cmd": "touch", "by": map[string]any{"txt": "a"}}); !strings.Contains(msg, "unknown query key") {
+		t.Errorf("unexpected error %q", msg)
+	}
+	norm(t, "exists", map[string]any{"cmd": "exists", "by": "textMatches", "value": "저장.*"})
+
+	w := norm(t, "which", map[string]any{"cmd": "which", "candidates": []any{[]any{"text", "a"}, map[string]any{"class": "Button", "text": "b"}}})
+	if c := w["candidates"].([]any); len(c) != 2 || reflect.TypeOf(c[1]).Kind() != reflect.Map {
+		t.Errorf("which candidates: %#v", w["candidates"])
+	}
+
+	all := norm(t, "find_all", map[string]any{"cmd": "find_all", "by": "id", "value": "title"})
+	if all["timeout"] != float64(0) {
+		t.Errorf("find_all timeout default = %#v, want 0", all["timeout"])
+	}
+}
+
+func TestParseQueryArg(t *testing.T) {
+	s := MustLoad()
+	c, _ := s.Command("touch")
+	v, err := s.ParseArg(c.Param("by"), `{"text":"확인","right_of":{"text":"취소"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, ok := v.(map[string]any); !ok || m["text"] != "확인" {
+		t.Errorf("parsed %#v", v)
+	}
+	if v, _ := s.ParseArg(c.Param("by"), "text"); v != "text" {
+		t.Errorf("plain selector parsed as %#v", v)
 	}
 }

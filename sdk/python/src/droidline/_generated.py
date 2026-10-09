@@ -3,14 +3,53 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Type, TypedDict, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Type, TypedDict, Union, cast, overload
 
 from ._errors import DroidlineError
 
+if TYPE_CHECKING:
+    from ._element import Element
+
 PROTO = 1
 
-By = Literal["text", "textContains", "id", "desc", "descContains", "class"]
+By = Literal["text", "textContains", "textMatches", "id", "desc", "descContains", "descMatches", "class"]
 Step = Union[Sequence[Any], Mapping[str, Any]]
+
+Query = TypedDict(
+    "Query",
+    {
+        "text": str,
+        "textContains": str,
+        "textMatches": str,
+        "id": str,
+        "desc": str,
+        "descContains": str,
+        "descMatches": str,
+        "class": str,
+        "package": str,
+        "clickable": bool,
+        "long_clickable": bool,
+        "checkable": bool,
+        "checked": bool,
+        "enabled": bool,
+        "focused": bool,
+        "selected": bool,
+        "scrollable": bool,
+        "editable": bool,
+        "password": bool,
+        "visible": bool,
+        "bounds": Sequence[int],
+        "has": "Query",
+        "inside": "Query",
+        "row": "Query",
+        "below": "Query",
+        "above": "Query",
+        "left_of": "Query",
+        "right_of": "Query",
+    },
+    total=False,
+)
+"""A selector written as an object. Every condition must hold on the same element. Pass it as by and leave value out."""
 
 Node = TypedDict(
     "Node",
@@ -31,6 +70,7 @@ Node = TypedDict(
         "scrollable": Any,
         "editable": Any,
         "password": Any,
+        "visible": Any,
         "children": Any,
     },
     total=False,
@@ -49,6 +89,7 @@ DeviceInfo = TypedDict(
         "agent": Any,
         "ready": Any,
         "last_seen": Any,
+        "leased": Any,
     },
     total=False,
 )
@@ -87,6 +128,19 @@ ScreenshotResult = TypedDict(
         "data": str,
     },
 )
+FindImageResult = TypedDict(
+    "FindImageResult",
+    {
+        "x": int,
+        "y": int,
+        "bounds": List[int],
+        "score": float,
+    },
+)
+TapImageResult = TypedDict("TapImageResult", {"x": int, "y": int, "score": float, "ms": int})
+OcrResult = TypedDict("OcrResult", {"text": str, "lines": List[Dict[str, Any]]})
+OcrFindResult = TypedDict("OcrFindResult", {"text": str, "x": int, "y": int, "bounds": List[int]})
+OcrTapResult = TypedDict("OcrTapResult", {"text": str, "x": int, "y": int, "ms": int})
 CurrentResult = TypedDict("CurrentResult", {"package": str, "activity": str})
 TapResult = TypedDict("TapResult", {"ms": int})
 LongTapResult = TypedDict("LongTapResult", {"ms": int})
@@ -99,6 +153,7 @@ ClearResult = TypedDict("ClearResult", {"ms": int})
 SendkeyResult = TypedDict("SendkeyResult", {"via": str})
 WaitResult = TypedDict("WaitResult", {"ms": int})
 WaitGoneResult = TypedDict("WaitGoneResult", {"ms": int})
+WaitIdleResult = TypedDict("WaitIdleResult", {"ms": int})
 WakeResult = TypedDict("WakeResult", {"screen_on": bool, "locked": bool})
 BatteryResult = TypedDict("BatteryResult", {"level": int, "charging": bool, "temperature": float})
 InfoResult = TypedDict(
@@ -116,19 +171,7 @@ InfoResult = TypedDict(
 )
 NetworkResult = TypedDict("NetworkResult", {"type": str, "airplane": bool, "metered": bool})
 LaunchResult = TypedDict("LaunchResult", {"ms": int})
-KillResult = TypedDict("KillResult", {"via": str, "ms": int})
-ClearDataResult = TypedDict("ClearDataResult", {"via": str, "ms": int})
-DataResult = TypedDict("DataResult", {"via": str, "ms": int, "accepted": bool}, total=False)
-WifiResult = TypedDict("WifiResult", {"via": str, "ms": int, "accepted": bool}, total=False)
-AirplaneResult = TypedDict(
-    "AirplaneResult",
-    {
-        "via": str,
-        "ms": int,
-        "accepted": bool,
-    },
-    total=False,
-)
+ClearDataResult = TypedDict("ClearDataResult", {"ms": int})
 BatchResult = TypedDict(
     "BatchResult",
     {
@@ -234,14 +277,6 @@ class ActivityBlockedError(DroidlineError):
     retryable = False
 
 
-class MacroFailedError(DroidlineError):
-    """A settings macro could not find its button (kill, clear_data, data, wifi, airplane). The blocked step and screen are returned."""
-
-    code = "MACRO_FAILED"
-    http = 422
-    retryable = True
-
-
 class ProxyFailedError(DroidlineError):
     """Upstream connection or authentication failed. reason is auth, timeout, refused or protocol."""
 
@@ -298,6 +333,38 @@ class DeviceAmbiguousError(DroidlineError):
     retryable = False
 
 
+class DeviceLeasedError(DroidlineError):
+    """The phone is leased and the request did not carry that lease."""
+
+    code = "DEVICE_LEASED"
+    http = 409
+    retryable = True
+
+
+class LeaseNotFoundError(DroidlineError):
+    """The lease in the request was released or expired."""
+
+    code = "LEASE_NOT_FOUND"
+    http = 404
+    retryable = False
+
+
+class NoFreeDeviceError(DroidlineError):
+    """lease waited and every matching phone stayed leased or offline."""
+
+    code = "NO_FREE_DEVICE"
+    http = 409
+    retryable = True
+
+
+class OcrUnavailableError(DroidlineError):
+    """Tesseract or the requested language data is missing on the PC."""
+
+    code = "OCR_UNAVAILABLE"
+    http = 501
+    retryable = False
+
+
 class AgentRestartedError(DroidlineError):
     """The phone app restarted with this command in flight. Not retried automatically to avoid running it twice."""
 
@@ -340,7 +407,6 @@ ERRORS: Dict[str, Type[DroidlineError]] = {
     "NO_PERMISSION": NoPermissionError,
     "APP_NOT_FOUND": AppNotFoundError,
     "ACTIVITY_BLOCKED": ActivityBlockedError,
-    "MACRO_FAILED": MacroFailedError,
     "PROXY_FAILED": ProxyFailedError,
     "UNKNOWN_CMD": UnknownCmdError,
     "UNSUPPORTED": UnsupportedError,
@@ -348,6 +414,10 @@ ERRORS: Dict[str, Type[DroidlineError]] = {
     "DEVICE_NOT_FOUND": DeviceNotFoundError,
     "DEVICE_OFFLINE": DeviceOfflineError,
     "DEVICE_AMBIGUOUS": DeviceAmbiguousError,
+    "DEVICE_LEASED": DeviceLeasedError,
+    "LEASE_NOT_FOUND": LeaseNotFoundError,
+    "NO_FREE_DEVICE": NoFreeDeviceError,
+    "OCR_UNAVAILABLE": OcrUnavailableError,
     "AGENT_RESTARTED": AgentRestartedError,
     "UNAUTHORIZED": UnauthorizedError,
     "PAIRING_FAILED": PairingFailedError,
@@ -386,6 +456,12 @@ class DeviceCommands:
     """Commands that run on one phone. Device mixes these in and implements _run."""
 
     def _run(self, cmd: str, kind: str, required: Dict[str, Any], /, **optional: Any) -> Any:
+        raise NotImplementedError
+
+    def _run_element(self, cmd: str, kind: str, required: Dict[str, Any], /, **optional: Any) -> Any:
+        raise NotImplementedError
+
+    def _load_image(self, image: Union[str, bytes]) -> str:
         raise NotImplementedError
 
     def _save_image(self, cmd: str, path: Optional[str], required: Dict[str, Any], /, **optional: Any) -> Any:
@@ -459,6 +535,161 @@ class DeviceCommands:
             scale=scale,
         ))
 
+    def record(self, on: bool, minutes: Optional[float] = None) -> None:
+        """Turn recording of taps and typing on or off.
+
+        Optional, and off until you turn it on. While on, the phone sends an action event for every tap, long press and text change in other apps, with the screen it happened on; password fields send no text. It turns itself off after minutes. droidline inspect uses it to write a script as you use the phone.
+
+        Args:
+            on: true to start, false to stop.
+            minutes: Turn off by itself after this long. Default: 30.
+
+        Example:
+            d.record(True)
+        """
+        self._run("record", "none", {"on": on}, minutes=minutes)
+
+    def find_image(
+        self,
+        image: Union[str, bytes],
+        threshold: Optional[float] = None,
+        timeout: Optional[float] = None,
+    ) -> FindImageResult:
+        """Find a picture on the screen.
+
+        Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+
+        Args:
+            image: PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+            threshold: How close the match must be, from 0 to 1. Default: 0.9.
+            timeout: Seconds to wait for the target to appear. Default: 10.
+
+        Raises:
+            NotFoundError: The target did not appear in time. The current package/activity is returned in screen.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.find_image("ok-button.png")
+        """
+        image = self._load_image(image)
+        return cast("FindImageResult", self._run(
+            "find_image",
+            "fields",
+            {"image": image},
+            threshold=threshold,
+            timeout=timeout,
+        ))
+
+    def tap_image(
+        self,
+        image: Union[str, bytes],
+        threshold: Optional[float] = None,
+        timeout: Optional[float] = None,
+    ) -> TapImageResult:
+        """Find a picture on the screen and tap its center.
+
+        Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+
+        Args:
+            image: PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+            threshold: How close the match must be, from 0 to 1. Default: 0.9.
+            timeout: Seconds to wait for the target to appear. Default: 10.
+
+        Raises:
+            NotFoundError: The target did not appear in time. The current package/activity is returned in screen.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.tap_image("ok-button.png")
+        """
+        image = self._load_image(image)
+        return cast("TapImageResult", self._run(
+            "tap_image",
+            "fields",
+            {"image": image},
+            threshold=threshold,
+            timeout=timeout,
+        ))
+
+    def ocr(self, lang: Optional[str] = None) -> OcrResult:
+        """Read the text on the screen with OCR.
+
+        Optional, and runs on the PC with Tesseract, which you install yourself along with the language data you need. Nothing is installed for you. On Android 9 and 10 screenshots need screen capture permission.
+
+        Args:
+            lang: Tesseract languages, such as kor+eng. Each needs its language data installed. Default: "eng".
+
+        Raises:
+            OcrUnavailableError: Tesseract or the requested language data is missing on the PC.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.ocr("kor+eng")
+        """
+        return cast("OcrResult", self._run("ocr", "fields", {}, lang=lang))
+
+    def ocr_find(
+        self,
+        text: str,
+        lang: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> OcrFindResult:
+        """Wait until OCR reads some text on the screen and return where it is.
+
+        Optional, and runs on the PC with Tesseract, which you install yourself along with the language data you need. Nothing is installed for you. On Android 9 and 10 screenshots need screen capture permission.
+
+        Args:
+            text: Text to look for: a whole word, or part of a line.
+            lang: Tesseract languages, such as kor+eng. Each needs its language data installed. Default: "eng".
+            timeout: Seconds to wait for the target to appear. Default: 10.
+
+        Raises:
+            NotFoundError: The target did not appear in time. The current package/activity is returned in screen.
+            OcrUnavailableError: Tesseract or the requested language data is missing on the PC.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.ocr_find("확인", "kor")
+        """
+        return cast("OcrFindResult", self._run(
+            "ocr_find",
+            "fields",
+            {"text": text},
+            lang=lang,
+            timeout=timeout,
+        ))
+
+    def ocr_tap(
+        self,
+        text: str,
+        lang: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> OcrTapResult:
+        """Wait until OCR reads some text on the screen and tap it.
+
+        Optional, and runs on the PC with Tesseract, which you install yourself along with the language data you need. Nothing is installed for you. On Android 9 and 10 screenshots need screen capture permission.
+
+        Args:
+            text: Text to look for: a whole word, or part of a line.
+            lang: Tesseract languages, such as kor+eng. Each needs its language data installed. Default: "eng".
+            timeout: Seconds to wait for the target to appear. Default: 10.
+
+        Raises:
+            NotFoundError: The target did not appear in time. The current package/activity is returned in screen.
+            OcrUnavailableError: Tesseract or the requested language data is missing on the PC.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.ocr_tap("확인", "kor")
+        """
+        return cast("OcrTapResult", self._run(
+            "ocr_tap",
+            "fields",
+            {"text": text},
+            lang=lang,
+            timeout=timeout,
+        ))
+
     def current(self) -> CurrentResult:
         """Foreground package and activity.
 
@@ -524,8 +755,8 @@ class DeviceCommands:
 
     def touch(
         self,
-        by: By,
-        value: str,
+        by: Union[By, Query],
+        value: Optional[str] = None,
         nth: Optional[int] = None,
         timeout: Optional[float] = None,
     ) -> TouchResult:
@@ -534,8 +765,8 @@ class DeviceCommands:
         If the node refuses the click, the center of its bounds is tapped instead. via tells which path worked: node, parent or gesture.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
             timeout: Seconds to wait for the target to appear. Default: 10.
 
@@ -550,7 +781,8 @@ class DeviceCommands:
         return cast("TouchResult", self._run(
             "touch",
             "fields",
-            {"by": by, "value": value},
+            {"by": by},
+            value=value,
             nth=nth,
             timeout=timeout,
         ))
@@ -566,7 +798,7 @@ class DeviceCommands:
         If the node refuses the click, the center of its bounds is tapped instead. via tells which path worked: node, parent or gesture.
 
         Args:
-            value: The value to match.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
             timeout: Seconds to wait for the target to appear. Default: 10.
 
@@ -594,7 +826,7 @@ class DeviceCommands:
         If the node refuses the click, the center of its bounds is tapped instead. via tells which path worked: node, parent or gesture.
 
         Args:
-            value: The value to match.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
             timeout: Seconds to wait for the target to appear. Default: 10.
 
@@ -622,7 +854,7 @@ class DeviceCommands:
         If the node refuses the click, the center of its bounds is tapped instead. via tells which path worked: node, parent or gesture.
 
         Args:
-            value: The value to match.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
             timeout: Seconds to wait for the target to appear. Default: 10.
 
@@ -641,8 +873,8 @@ class DeviceCommands:
 
     def long_touch(
         self,
-        by: By,
-        value: str,
+        by: Union[By, Query],
+        value: Optional[str] = None,
         ms: Optional[int] = None,
         nth: Optional[int] = None,
         timeout: Optional[float] = None,
@@ -650,8 +882,8 @@ class DeviceCommands:
         """Wait for an element and press and hold it.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             ms: Hold time in milliseconds. Default: 800.
             nth: Index when several elements match, starting at 0. Default: 0.
             timeout: Seconds to wait for the target to appear. Default: 10.
@@ -662,7 +894,8 @@ class DeviceCommands:
         return cast("LongTouchResult", self._run(
             "long_touch",
             "fields",
-            {"by": by, "value": value},
+            {"by": by},
+            value=value,
             ms=ms,
             nth=nth,
             timeout=timeout,
@@ -670,8 +903,8 @@ class DeviceCommands:
 
     def scroll_to(
         self,
-        by: By,
-        value: str,
+        by: Union[By, Query],
+        value: Optional[str] = None,
         direction: Optional[Literal["down", "up", "left", "right"]] = None,
         max_swipes: Optional[int] = None,
         nth: Optional[int] = None,
@@ -679,8 +912,8 @@ class DeviceCommands:
         """Scroll until an element is visible.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             direction: Direction the content moves toward. Default: "down".
             max_swipes: Give up after this many swipes. Default: 20.
             nth: Index when several elements match, starting at 0. Default: 0.
@@ -691,7 +924,8 @@ class DeviceCommands:
         return cast("ScrollToResult", self._run(
             "scroll_to",
             "fields",
-            {"by": by, "value": value},
+            {"by": by},
+            value=value,
             direction=direction,
             max_swipes=max_swipes,
             nth=nth,
@@ -699,9 +933,9 @@ class DeviceCommands:
 
     def input(
         self,
-        by: By,
-        value: str,
-        text: str,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        text: Optional[str] = None,
         append: Optional[bool] = None,
         nth: Optional[int] = None,
         timeout: Optional[float] = None,
@@ -711,8 +945,8 @@ class DeviceCommands:
         Uses the accessibility set-text action. Fields that ignore it fall back to the Droidline keyboard when it is selected.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             text: Text to enter.
             append: Keep existing text and add to the end. Default: False.
             nth: Index when several elements match, starting at 0. Default: 0.
@@ -721,10 +955,13 @@ class DeviceCommands:
         Example:
             d.input("id", "com.kakao.talk:id/email", "knife")
         """
+        if not isinstance(by, str) and text is None:
+            value, text = None, value
         return cast("InputResult", self._run(
             "input",
             "fields",
-            {"by": by, "value": value, "text": text},
+            {"by": by, "text": text},
+            value=value,
             append=append,
             nth=nth,
             timeout=timeout,
@@ -732,16 +969,16 @@ class DeviceCommands:
 
     def clear(
         self,
-        by: By,
-        value: str,
+        by: Union[By, Query],
+        value: Optional[str] = None,
         nth: Optional[int] = None,
         timeout: Optional[float] = None,
     ) -> ClearResult:
         """Empty a text field.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
             timeout: Seconds to wait for the target to appear. Default: 10.
 
@@ -751,7 +988,8 @@ class DeviceCommands:
         return cast("ClearResult", self._run(
             "clear",
             "fields",
-            {"by": by, "value": value},
+            {"by": by},
+            value=value,
             nth=nth,
             timeout=timeout,
         ))
@@ -778,31 +1016,36 @@ class DeviceCommands:
         """
         return cast("SendkeyResult", self._run("sendkey", "fields", {}, key=key, text=text))
 
-    def exists(self, by: By, value: str, nth: Optional[int] = None) -> bool:
+    def exists(
+        self,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        nth: Optional[int] = None,
+    ) -> bool:
         """Whether an element is on screen right now. Never waits.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
 
         Example:
             d.exists("text", "광고 닫기")
         """
-        return cast("bool", self._run("exists", "value", {"by": by, "value": value}, nth=nth))
+        return cast("bool", self._run("exists", "value", {"by": by}, value=value, nth=nth))
 
     def wait(
         self,
-        by: By,
-        value: str,
+        by: Union[By, Query],
+        value: Optional[str] = None,
         timeout: Optional[float] = None,
         nth: Optional[int] = None,
     ) -> WaitResult:
         """Wait until an element appears.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             timeout: Seconds to wait for the target to appear. Default: 10.
             nth: Index when several elements match, starting at 0. Default: 0.
 
@@ -815,17 +1058,23 @@ class DeviceCommands:
         return cast("WaitResult", self._run(
             "wait",
             "fields",
-            {"by": by, "value": value},
+            {"by": by},
+            value=value,
             timeout=timeout,
             nth=nth,
         ))
 
-    def wait_gone(self, by: By, value: str, timeout: Optional[float] = None) -> WaitGoneResult:
+    def wait_gone(
+        self,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> WaitGoneResult:
         """Wait until an element disappears.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             timeout: Seconds to wait for the target to appear. Default: 10.
 
         Raises:
@@ -837,79 +1086,183 @@ class DeviceCommands:
         return cast("WaitGoneResult", self._run(
             "wait_gone",
             "fields",
-            {"by": by, "value": value},
+            {"by": by},
+            value=value,
             timeout=timeout,
         ))
 
-    def get_text(self, by: By, value: str, nth: Optional[int] = None) -> str:
+    def wait_idle(
+        self,
+        ms: Optional[int] = None,
+        timeout: Optional[float] = None,
+    ) -> WaitIdleResult:
+        """Wait until the screen stops changing.
+
+        Waits until the app in front has drawn nothing new for ms milliseconds. Use it after an action that loads content, instead of a fixed sleep. A screen that animates all the time ends in TIMEOUT.
+
+        Args:
+            ms: How long the screen must stay unchanged. Default: 500.
+            timeout: Seconds to wait before giving up. Default: 10.
+
+        Raises:
+            DroidlineTimeoutError: The action itself timed out. Safe to retry.
+
+        Example:
+            d.wait_idle()
+        """
+        return cast("WaitIdleResult", self._run("wait_idle", "fields", {}, ms=ms, timeout=timeout))
+
+    def find(
+        self,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        nth: Optional[int] = None,
+        timeout: Optional[float] = None,
+    ) -> Element:
+        """Wait for an element and return it.
+
+        The SDKs return an element object with click, input, find and the node fields. The node comes without children.
+
+        Args:
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
+            nth: Index when several elements match, starting at 0. Default: 0.
+            timeout: Seconds to wait for the target to appear. Default: 10.
+
+        Raises:
+            NotFoundError: The target did not appear in time. The current package/activity is returned in screen.
+
+        Example:
+            d.find("text", "로그인")
+        """
+        return cast("Element", self._run_element(
+            "find",
+            "value",
+            {"by": by},
+            value=value,
+            nth=nth,
+            timeout=timeout,
+        ))
+
+    def find_all(
+        self,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> List[Element]:
+        """Every element that matches right now.
+
+        Answers at once, with an empty list when nothing matches, unless timeout is set. Directional queries come back nearest first.
+
+        Args:
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
+            timeout: Seconds to wait for at least one match. 0 answers at once. Default: 0.
+
+        Example:
+            d.find_all("id", "title")
+        """
+        return cast("List[Element]", self._run_element(
+            "find_all",
+            "value",
+            {"by": by},
+            value=value,
+            timeout=timeout,
+        ))
+
+    def get_text(
+        self,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        nth: Optional[int] = None,
+    ) -> str:
         """Text of an element, or an empty string.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
 
         Example:
             d.get_text("id", "com.example:id/balance")
         """
-        return cast("str", self._run("get_text", "value", {"by": by, "value": value}, nth=nth))
+        return cast("str", self._run("get_text", "value", {"by": by}, value=value, nth=nth))
 
-    def checked(self, by: By, value: str, nth: Optional[int] = None) -> bool:
+    def checked(
+        self,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        nth: Optional[int] = None,
+    ) -> bool:
         """true if a switch or checkbox is on.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
 
         Example:
             d.checked("id", "com.kakao.talk:id/auto_login")
         """
-        return cast("bool", self._run("checked", "value", {"by": by, "value": value}, nth=nth))
+        return cast("bool", self._run("checked", "value", {"by": by}, value=value, nth=nth))
 
-    def enabled(self, by: By, value: str, nth: Optional[int] = None) -> bool:
+    def enabled(
+        self,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        nth: Optional[int] = None,
+    ) -> bool:
         """true if the element can be pressed.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
 
         Example:
             d.enabled("text", "다음")
         """
-        return cast("bool", self._run("enabled", "value", {"by": by, "value": value}, nth=nth))
+        return cast("bool", self._run("enabled", "value", {"by": by}, value=value, nth=nth))
 
-    def selected(self, by: By, value: str, nth: Optional[int] = None) -> bool:
+    def selected(
+        self,
+        by: Union[By, Query],
+        value: Optional[str] = None,
+        nth: Optional[int] = None,
+    ) -> bool:
         """true if a tab or item is selected.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
             nth: Index when several elements match, starting at 0. Default: 0.
 
         Example:
             d.selected("text", "채팅")
         """
-        return cast("bool", self._run("selected", "value", {"by": by, "value": value}, nth=nth))
+        return cast("bool", self._run("selected", "value", {"by": by}, value=value, nth=nth))
 
-    def count(self, by: By, value: str) -> int:
+    def count(self, by: Union[By, Query], value: Optional[str] = None) -> int:
         """Number of matching elements.
 
         Args:
-            by: Which dump field to match: text, textContains, id, desc, descContains, class.
-            value: The value to match.
+            by: Which dump field to match (text, textContains, textMatches, id, desc, descContains, descMatches, class), or a query object with several conditions.
+            value: The value to match. Leave it out when by is a query object.
 
         Example:
             d.count("class", "android.widget.CheckBox")
         """
-        return cast("int", self._run("count", "value", {"by": by, "value": value}))
+        return cast("int", self._run("count", "value", {"by": by}, value=value))
 
-    def which(self, candidates: Sequence[Tuple[By, str]], timeout: Optional[float] = None) -> int:
+    def which(
+        self,
+        candidates: Sequence[Union[Tuple[By, str], Query]],
+        timeout: Optional[float] = None,
+    ) -> int:
         """Index of the first candidate to appear, or -1.
 
         Args:
-            candidates: List of [by, value] pairs.
+            candidates: List of [by, value] pairs or query objects.
             timeout: Seconds to wait for any candidate. Default: 10.
 
         Example:
@@ -1065,34 +1418,41 @@ class DeviceCommands:
         """
         self._run("open_url", "none", {"url": url}, package=package)
 
-    def kill(self, package: str) -> KillResult:
-        """Force stop an app.
+    def intent(
+        self,
+        action: str,
+        data: Optional[str] = None,
+        package: Optional[str] = None,
+    ) -> None:
+        """Open a screen by its intent action, such as a Settings page.
 
-        Runs a settings macro: App info, Force stop, OK. Takes a few seconds.
+        Opens any screen other apps are allowed to open, for example android.settings.WIFI_SETTINGS, or android.settings.APPLICATION_DETAILS_SETTINGS with data package:com.example. The screen opens fresh, closing other screens of the same app. What to tap after that differs by phone maker and language, so Wi-Fi, airplane mode, force stop and clearing data are recipes in the docs rather than commands.
 
         Args:
-            package: Package name, for example com.android.chrome.
+            action: Intent action, such as android.settings.WIFI_SETTINGS.
+            data: Data URI, such as package:com.example.
+            package: Only this app may handle it.
 
         Raises:
             AppNotFoundError: Package is not installed. Similar package names are suggested.
-            MacroFailedError: A settings macro could not find its button (kill, clear_data, data, wifi, airplane). The blocked step and screen are returned.
+            BadArgsError: Missing or invalid parameters.
 
         Example:
-            d.kill("com.kakao.talk")
+            d.intent("android.settings.WIFI_SETTINGS")
         """
-        return cast("KillResult", self._run("kill", "fields", {"package": package}))
+        self._run("intent", "none", {"action": action}, data=data, package=package)
 
     def clear_data(self, package: str) -> ClearDataResult:
-        """Clear an app's data.
+        """Clear an app's data in device owner mode.
 
-        Runs a settings macro: App info, Storage, Clear data, OK.
+        Optional, and only in device owner mode, where the phone wipes the app directly without opening Settings. Without it the answer is NO_PERMISSION; the docs have a recipe that goes through Settings instead.
 
         Args:
             package: Package name, for example com.android.chrome.
 
         Raises:
             AppNotFoundError: Package is not installed. Similar package names are suggested.
-            MacroFailedError: A settings macro could not find its button (kill, clear_data, data, wifi, airplane). The blocked step and screen are returned.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
 
         Example:
             d.clear_data("com.android.chrome")
@@ -1161,53 +1521,6 @@ class DeviceCommands:
         """
         self._run("quick_settings", "none", {})
 
-    def data(self, on: bool, *, wait: Optional[bool] = None) -> DataResult:
-        """Turn mobile data on or off.
-
-        Args:
-            on: true to turn on, false to turn off.
-            wait: Block until the phone is back and return the final result. Without it, data(False) returns {"accepted": True} as soon as the phone accepts, and the final result arrives later as a "result" event.
-
-        Raises:
-            MacroFailedError: A settings macro could not find its button (kill, clear_data, data, wifi, airplane). The blocked step and screen are returned.
-
-        Example:
-            d.data(False)
-        """
-        return cast("DataResult", self._run("data", "fields", {"on": on}, wait=wait))
-
-    def wifi(self, on: bool, *, wait: Optional[bool] = None) -> WifiResult:
-        """Turn Wi-Fi on or off.
-
-        Args:
-            on: true to turn on, false to turn off.
-            wait: Block until the phone is back and return the final result. Without it, wifi(False) returns {"accepted": True} as soon as the phone accepts, and the final result arrives later as a "result" event.
-
-        Raises:
-            MacroFailedError: A settings macro could not find its button (kill, clear_data, data, wifi, airplane). The blocked step and screen are returned.
-
-        Example:
-            d.wifi(False)
-        """
-        return cast("WifiResult", self._run("wifi", "fields", {"on": on}, wait=wait))
-
-    def airplane(self, on: bool, *, wait: Optional[bool] = None) -> AirplaneResult:
-        """Turn airplane mode on or off.
-
-        To renew the IP, put on and off in one batch so the phone runs both while offline.
-
-        Args:
-            on: true to turn on, false to turn off.
-            wait: Block until the phone is back and return the final result. Without it, airplane(True) returns {"accepted": True} as soon as the phone accepts, and the final result arrives later as a "result" event.
-
-        Raises:
-            MacroFailedError: A settings macro could not find its button (kill, clear_data, data, wifi, airplane). The blocked step and screen are returned.
-
-        Example:
-            d.airplane(True)
-        """
-        return cast("AirplaneResult", self._run("airplane", "fields", {"on": on}, wait=wait))
-
     def clipboard(self, text: Optional[str] = None) -> str:
         """Write the clipboard, or read it when called without text.
 
@@ -1228,26 +1541,29 @@ class DeviceCommands:
         self,
         steps: Sequence[Step],
         stop_on_error: Optional[bool] = None,
+        cuts_network: Optional[bool] = None,
         *,
         wait: Optional[bool] = None,
     ) -> BatchResult:
         """Run several commands on the phone in one go, even while it is offline.
 
-        Steps are [cmd, args...] lists or {cmd, ...} objects. The step sleep(ms) only exists inside batch. If a step cuts the network, the call returns accepted and the result arrives after reconnect.
+        Steps are [cmd, args...] lists or {cmd, ...} objects. The step sleep(ms) only exists inside batch. When the steps turn off the phone's network, for example Wi-Fi off and on again, pass cuts_network: the phone answers accepted first, runs the steps while offline, and the result arrives after it reconnects.
 
         Args:
             steps: Commands to run in order.
             stop_on_error: Stop at the first failing step. Default: True.
-            wait: Block until the phone is back and return the final result. Without it, a batch with a step that cuts the network returns {"accepted": True} as soon as the phone accepts, and the final result arrives later as a "result" event.
+            cuts_network: The steps drop the phone's link. Answer accepted first and send the result after reconnecting. Default: False.
+            wait: Block until the phone is back and return the final result. Without it, batch(..., cuts_network=True) returns {"accepted": True} as soon as the phone accepts, and the final result arrives later as a "result" event.
 
         Example:
-            d.batch([("airplane", True), ("sleep", 3000), ("airplane", False)])
+            d.batch([("home",), ("sleep", 500), ("recents",)])
         """
         return cast("BatchResult", self._run(
             "batch",
             "fields",
             {"steps": steps},
             stop_on_error=stop_on_error,
+            cuts_network=cuts_network,
             wait=wait,
         ))
 
@@ -1299,33 +1615,33 @@ class DeviceCommands:
     def has_notification(
         self,
         by: Literal["text", "textContains", "title", "package"],
-        value: str,
+        value: Optional[str] = None,
     ) -> bool:
         """true if a showing notification matches.
 
         Args:
             by: text and textContains look at both title and text.
-            value: The value to match.
+            value: The value to match. Leave it out when by is a query object.
 
         Example:
             d.has_notification("textContains", "배송")
         """
-        return cast("bool", self._run("has_notification", "value", {"by": by, "value": value}))
+        return cast("bool", self._run("has_notification", "value", {"by": by}, value=value))
 
     def wait_notification(
         self,
         by: Literal["text", "textContains", "title", "package"],
-        value: str,
+        value: Optional[str] = None,
         timeout: Optional[float] = None,
         package: Optional[str] = None,
     ) -> Notification:
         """Wait for a matching notification and return it.
 
-        Handled by the PC server, so it does not block other commands to the phone. On Android 15+ the OS hides one-time codes from apps: you get the notification but the code is masked.
+        Handled by the PC server, so it does not block other commands to the phone. It sees only apps you chose with notify_filter, and the default is none. On Android 15+ the OS hides one-time codes from apps: you get the notification but the code is masked.
 
         Args:
             by: text and textContains look at both title and text.
-            value: The value to match.
+            value: The value to match. Leave it out when by is a query object.
             timeout: Seconds to wait. Default: 60.
             package: Only from this app.
 
@@ -1338,7 +1654,8 @@ class DeviceCommands:
         return cast("Notification", self._run(
             "wait_notification",
             "value",
-            {"by": by, "value": value},
+            {"by": by},
+            value=value,
             timeout=timeout,
             package=package,
         ))
@@ -1398,17 +1715,17 @@ class ClientCommands:
     def wait_notification(
         self,
         by: Literal["text", "textContains", "title", "package"],
-        value: str,
+        value: Optional[str] = None,
         timeout: Optional[float] = None,
         package: Optional[str] = None,
     ) -> Notification:
         """Wait for a matching notification and return it.
 
-        Handled by the PC server, so it does not block other commands to the phone. On Android 15+ the OS hides one-time codes from apps: you get the notification but the code is masked.
+        Handled by the PC server, so it does not block other commands to the phone. It sees only apps you chose with notify_filter, and the default is none. On Android 15+ the OS hides one-time codes from apps: you get the notification but the code is masked.
 
         Args:
             by: text and textContains look at both title and text.
-            value: The value to match.
+            value: The value to match. Leave it out when by is a query object.
             timeout: Seconds to wait. Default: 60.
             package: Only from this app.
 
@@ -1421,7 +1738,8 @@ class ClientCommands:
         return cast("Notification", self._run(
             "wait_notification",
             "value",
-            {"by": by, "value": value},
+            {"by": by},
+            value=value,
             timeout=timeout,
             package=package,
         ))
@@ -1487,7 +1805,7 @@ class ClientCommands:
         """Receive events on this connection.
 
         Args:
-            events: Any of notification, screen, toast, device, result.
+            events: Any of notification, screen, toast, device, result, action.
             device: Only from this device. Omit for all.
 
         Example:
@@ -1518,6 +1836,7 @@ class ClientCommands:
 __all__ = [
     "PROTO",
     "By",
+    "Query",
     "Step",
     "Node",
     "DeviceInfo",
@@ -1525,6 +1844,11 @@ __all__ = [
     "App",
     "DumpResult",
     "ScreenshotResult",
+    "FindImageResult",
+    "TapImageResult",
+    "OcrResult",
+    "OcrFindResult",
+    "OcrTapResult",
     "CurrentResult",
     "TapResult",
     "LongTapResult",
@@ -1537,16 +1861,13 @@ __all__ = [
     "SendkeyResult",
     "WaitResult",
     "WaitGoneResult",
+    "WaitIdleResult",
     "WakeResult",
     "BatteryResult",
     "InfoResult",
     "NetworkResult",
     "LaunchResult",
-    "KillResult",
     "ClearDataResult",
-    "DataResult",
-    "WifiResult",
-    "AirplaneResult",
     "BatchResult",
     "ProxyResult",
     "ProxyCheckResult",
@@ -1562,7 +1883,6 @@ __all__ = [
     "NoPermissionError",
     "AppNotFoundError",
     "ActivityBlockedError",
-    "MacroFailedError",
     "ProxyFailedError",
     "UnknownCmdError",
     "UnsupportedError",
@@ -1570,6 +1890,10 @@ __all__ = [
     "DeviceNotFoundError",
     "DeviceOfflineError",
     "DeviceAmbiguousError",
+    "DeviceLeasedError",
+    "LeaseNotFoundError",
+    "NoFreeDeviceError",
+    "OcrUnavailableError",
     "AgentRestartedError",
     "UnauthorizedError",
     "PairingFailedError",

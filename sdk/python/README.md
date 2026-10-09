@@ -23,7 +23,8 @@ d.input("id", "com.kakao.talk:id/email", "knife")
 d.sendkey("enter")
 if d.exists("text", "광고 닫기"):
     d.touch("text", "광고 닫기")
-d.batch([("airplane", True), ("sleep", 3000), ("airplane", False)])
+d.intent("android.settings.WIFI_SETTINGS")    # open a Settings page by its intent action
+d.wait_idle()
 ```
 
 `connect()` uses the only online phone. With several, pass an ID or name: `connect("shelf-01")`, or use `Droidline().device("shelf-01")` for each. `DROIDLINE_HOST`, `DROIDLINE_PORT`, `DROIDLINE_TOKEN` and `DROIDLINE_DEVICE` set the defaults.

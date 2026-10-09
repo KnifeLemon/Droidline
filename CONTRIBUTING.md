@@ -11,9 +11,9 @@ Every command lives in [`spec/commands.json`](spec/commands.json). Change it the
 
 The CLI, the MCP tool list and the docs site read the same file, so they pick the change up without code.
 
-## Settings macros on your phone
+## Settings recipes on your phone
 
-`kill`, `clear_data`, `data`, `wifi` and `airplane` press buttons in Settings, and labels differ by manufacturer and language. If one fails on your phone, open an issue with the `MACRO_FAILED` response (it names the step and screen), your phone model, Android version and system language. Adding the label to `agent/app/src/main/assets/macro_labels.json` is usually the whole fix.
+Force stop, clearing app data and the Wi-Fi, mobile data and airplane mode switches are not commands. Settings differs by manufacturer, Android version and language, so they are [recipes in the docs](https://droidline.dev/docs/recipes/#settings-force-stop-clear-data-network-switches) built from `intent`, `touch` and `batch` with `cuts_network`. The recipes were checked on Samsung phones in Korean. If a recipe needs different labels or steps on your phone, open an issue with your phone model, Android version, system language and a `dump` of the screen where it stopped.
 
 ## Before a pull request
 

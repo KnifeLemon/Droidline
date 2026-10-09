@@ -20,6 +20,7 @@ import android.provider.Browser
 import android.provider.Settings
 import dev.droidline.agent.Agent
 import dev.droidline.agent.a11y.DroidAccessibilityService
+import dev.droidline.agent.admin.DeviceOwner
 import dev.droidline.agent.cmd.CmdError
 import dev.droidline.agent.ime.DroidKeyboard
 import dev.droidline.agent.service.Readiness
@@ -96,6 +97,36 @@ object DeviceCommands {
             throw CmdError.badArgs("open_url", "the app that handles $url does not allow other apps to open it")
         }
         return JSONObject()
+    }
+
+    suspend fun intent(ctx: Context, p: JSONObject): JSONObject {
+        val action = (p.opt("action") as? String)?.takeIf { it.isNotBlank() } ?: throw CmdError.badArgs("intent", "action must be a string")
+        val data = (p.opt("data") as? String)?.takeIf { it.isNotBlank() }
+        val pkg = (p.opt("package") as? String)?.takeIf { it.isNotBlank() }
+        if (pkg != null) Apps.requireInstalled(ctx, pkg)
+        // Without CLEAR_TASK an open Settings task only comes to the front and the new page never shows.
+        val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        if (data != null) intent.data = Uri.parse(data)
+        if (pkg != null) intent.setPackage(pkg)
+        try {
+            withContext(Dispatchers.Main) { ctx.startActivity(intent) }
+        } catch (e: ActivityNotFoundException) {
+            throw CmdError.badArgs("intent", "no screen on this phone handles $action")
+        } catch (e: SecurityException) {
+            throw CmdError.badArgs("intent", "the screen for $action does not allow other apps to open it")
+        }
+        return JSONObject()
+    }
+
+    /** Only in device owner mode: Settings differs too much between phones to drive it from here. */
+    suspend fun clearData(ctx: Context, p: JSONObject): JSONObject {
+        val t0 = System.currentTimeMillis()
+        val pkg = (p.opt("package") as? String)?.takeIf { it.isNotBlank() } ?: throw CmdError.badArgs("clear_data", "package must be a string")
+        Apps.requireInstalled(ctx, pkg)
+        if (pkg == ctx.packageName) throw CmdError.badArgs("clear_data", "Droidline cannot clear its own data")
+        if (!DeviceOwner.isOwner(ctx)) throw CmdError.noPermission("device_owner")
+        if (!DeviceOwner.clearData(ctx, pkg)) throw CmdError.internal("Android refused to clear $pkg")
+        return JSONObject().put("ms", System.currentTimeMillis() - t0)
     }
 
     private const val CHROME = "com.android.chrome"

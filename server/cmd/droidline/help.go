@@ -32,6 +32,12 @@ Setup
   droidline mcp                   MCP server for AI agents (stdio)
   droidline doctor                check the setup
 
+Optional
+  droidline lease [device]        borrow a free phone so other scripts cannot use it
+  droidline release <lease>       give a leased phone back (-d NAME frees a stuck phone)
+  droidline webdriver             Appium-compatible WebDriver bridge on 127.0.0.1:4723
+  droidline inspect               screen inspector and recorder on http://127.0.0.1:8781
+
 Settings
   droidline token create|list|revoke     client tokens for remote access
   droidline relay set <url> <token>      reach phones on mobile data through your relay
@@ -40,6 +46,7 @@ Settings
 
 Global options
   --device, -d NAME   which phone (needed when more than one is online)
+  --lease ID          send this lease with phone commands (from droidline lease)
   --json              print the raw response
   --addr HOST:PORT    server address (default 127.0.0.1:8780)
   --token TOKEN       client token
@@ -59,7 +66,7 @@ Phone commands (droidline help <command> for details)
 		}
 		fmt.Fprintf(w, "  %-14s %s\n", g.title, strings.Join(names, " "))
 	}
-	fmt.Fprintf(w, "\nExamples\n  droidline launch com.android.chrome\n  droidline dump screen.json\n  droidline touch text \"%s\"\n  droidline touchById login\n  droidline screenshot a.png --scale 0.5\n  droidline which text=Login id=main_tab --timeout 15\n  droidline batch '[[\"airplane\",true],[\"sleep\",3000],[\"airplane\",false]]' --wait\n",
+	fmt.Fprintf(w, "\nExamples\n  droidline launch com.android.chrome\n  droidline dump screen.json\n  droidline touch text \"%s\"\n  droidline touchById login\n  droidline screenshot a.png --scale 0.5\n  droidline which text=Login id=main_tab --timeout 15\n  droidline batch '[[\"home\"],[\"sleep\",500],[\"recents\"]]'\n",
 		map[string]string{"ko": "로그인", "zh": "登录"}[lang]+map[bool]string{true: "Log in", false: ""}[lang == "en"])
 }
 

@@ -1,9 +1,10 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createConnection, type Socket } from "node:net";
 import { extname } from "node:path";
 import type { Params } from "./args.js";
 import { DroidlineError, errorFromResponse } from "./errors.js";
-import { ClientCommands, DeviceCommands, type DeviceInfo, type Notification, type ReturnKind } from "./generated.js";
+import { Element } from "./element.js";
+import { ClientCommands, DeviceCommands, type DeviceInfo, type Node, type Notification, type ReturnKind } from "./generated.js";
 
 export const DEFAULT_HOST = "127.0.0.1";
 export const DEFAULT_PORT = 8780;
@@ -12,6 +13,30 @@ export interface ClientOptions {
   host?: string;
   port?: number;
   token?: string;
+}
+
+/** One request in the history kept by each client, oldest first. */
+export interface HistoryEntry {
+  time: number;
+  device: string | undefined;
+  cmd: string;
+  params: Params;
+  ok: boolean;
+  error: string | null;
+  ms: number;
+}
+
+export interface LeaseOptions extends ClientOptions {
+  /** This phone, by ID or name. Omit to take any free one. */
+  device?: string;
+  /** Seconds to wait for a phone to become free. @default 30 */
+  wait?: number;
+  /** The lease ends after this many seconds without a command. @default 300 */
+  ttl?: number;
+  /** Only phones with at least this Android API level. */
+  min_sdk?: number;
+  /** Only phones whose model contains this text. */
+  model?: string;
 }
 
 export interface ConnectOptions extends ClientOptions {
@@ -60,9 +85,13 @@ function result(kind: ReturnKind, reply: Reply): unknown {
   return undefined;
 }
 
-function message(cmd: string, device: string | undefined, params: Params): Params {
-  return device === undefined ? { cmd, ...params } : { cmd, device, ...params };
+function message(cmd: string, device: string | undefined, params: Params, lease?: string): Params {
+  const msg: Params = device === undefined ? { cmd, ...params } : { cmd, device, ...params };
+  if (lease !== undefined) msg.lease = lease;
+  return msg;
 }
+
+const HISTORY_SIZE = 200;
 
 /** Pipelines NDJSON requests over one socket and matches replies by id (PROTOCOL.md section 3). */
 class Connection {
@@ -70,6 +99,7 @@ class Connection {
   private opening?: Promise<Link>;
   private nextId = 1;
   private readonly subscriptions: string[] = [];
+  readonly history: HistoryEntry[] = [];
 
   constructor(
     readonly host: string,
@@ -84,7 +114,15 @@ class Connection {
   }
 
   async request(msg: Params): Promise<Reply> {
-    const reply = await this.exchange(await this.ensure(), msg);
+    const start = Date.now();
+    let reply: Reply;
+    try {
+      reply = await this.exchange(await this.ensure(), msg);
+    } catch (err) {
+      this.note(msg, start, err instanceof DroidlineError ? err.code : "CONNECTION_LOST");
+      throw err;
+    }
+    this.note(msg, start, null);
     if (msg.cmd === "subscribe") {
       const key = JSON.stringify(msg);
       if (!this.subscriptions.includes(key)) this.subscriptions.push(key);
@@ -92,6 +130,17 @@ class Connection {
       this.token = msg.token as string | undefined;
     }
     return reply;
+  }
+
+  private note(msg: Params, start: number, error: string | null): void {
+    if (msg.cmd === "auth") return;
+    const params: Params = {};
+    for (const [k, v] of Object.entries(msg)) {
+      if (["id", "cmd", "device", "lease", "token"].includes(k)) continue;
+      params[k] = typeof v === "string" && v.length > 200 ? `<${v.length} characters>` : v;
+    }
+    this.history.push({ time: start, device: msg.device as string | undefined, cmd: String(msg.cmd), params, ok: error === null, error, ms: Date.now() - start });
+    if (this.history.length > HISTORY_SIZE) this.history.shift();
   }
 
   async subscribeOnce(msg: Params): Promise<void> {
@@ -257,6 +306,30 @@ export class Droidline extends ClientCommands {
     return fields(await conn(this).request({ cmd, ...params }));
   }
 
+  /**
+   * Borrow a free phone so no other script can use it until release(). Optional: phones nobody
+   * leased keep working as before. Rejects with NO_FREE_DEVICE when nothing matched within `wait`.
+   */
+  async lease(options: Omit<LeaseOptions, keyof ClientOptions> = {}): Promise<LeasedDevice> {
+    const params: Params = {};
+    for (const [k, v] of Object.entries(options)) if (v !== undefined) params[k] = v;
+    const reply = fields(await conn(this).request(message("lease", undefined, params)));
+    return new LeasedDevice(this, String(reply.device), String(reply.lease), reply);
+  }
+
+  /**
+   * Give a leased phone back. Releasing twice is harmless. Pass `{ device }` instead of the
+   * lease to free a phone whose script crashed while holding it.
+   */
+  async release(lease: string | { device: string }): Promise<void> {
+    await conn(this).request(typeof lease === "string" ? { cmd: "release", lease } : { cmd: "release", device: lease.device });
+  }
+
+  /** The last 200 requests on this connection, oldest first. */
+  get history(): HistoryEntry[] {
+    return [...conn(this).history];
+  }
+
   /** Close the socket. Calls still waiting fail with CONNECTION_LOST; a later call reconnects. */
   close(): void {
     conn(this).close();
@@ -290,9 +363,17 @@ export class Device extends DeviceCommands {
     this.device = device;
   }
 
+  /** Set while this handle holds a lease; every request carries it. */
+  leaseId: string | undefined;
+
   /** Send any command to this phone, including ones newer than this SDK. */
   async call(cmd: string, params: Params = {}): Promise<Reply> {
-    return fields(await conn(this.client).request(message(cmd, this.device, params)));
+    return fields(await conn(this.client).request(message(cmd, this.device, params, this.leaseId)));
+  }
+
+  /** Recent requests to this phone, oldest first. */
+  get history(): HistoryEntry[] {
+    return this.client.history.filter((e) => this.device === undefined || e.device === this.device);
   }
 
   /**
@@ -335,7 +416,18 @@ export class Device extends DeviceCommands {
   }
 
   protected async _run(cmd: string, kind: ReturnKind, params: Params): Promise<any> {
-    return result(kind, await conn(this.client).request(message(cmd, this.device, params)));
+    return result(kind, await conn(this.client).request(message(cmd, this.device, params, this.leaseId)));
+  }
+
+  protected async _loadImage(image: unknown): Promise<string> {
+    // A file path or the bytes of a PNG or JPEG; the wire carries base64.
+    if (image instanceof Uint8Array) return Buffer.from(image).toString("base64");
+    return (await readFile(String(image))).toString("base64");
+  }
+
+  protected async _runElement(cmd: string, kind: ReturnKind, params: Params): Promise<Element | Element[]> {
+    const found = await this._run(cmd, kind, params);
+    return Array.isArray(found) ? found.map((n: Node) => new Element(this, n)) : new Element(this, found as Node);
   }
 
   protected async _saveImage(cmd: string, params: Params): Promise<Buffer | string> {
@@ -374,6 +466,52 @@ export class Device extends DeviceCommands {
       if (!(err instanceof DroidlineError)) throw err;
     }
     return ids;
+  }
+}
+
+/** A phone borrowed with lease(). Every request carries the lease; release() gives it back. */
+export class LeasedDevice extends Device {
+  readonly name: string;
+  readonly ttl: number;
+
+  constructor(client: Droidline, device: string, leaseId: string, info: Reply) {
+    super(client, device);
+    this.leaseId = leaseId;
+    this.name = String(info.name ?? device);
+    this.ttl = Number(info.ttl ?? 0);
+  }
+
+  /** Give the phone back. */
+  async release(): Promise<void> {
+    const id = this.leaseId;
+    this.leaseId = undefined;
+    if (id !== undefined) await this.client.release(id);
+  }
+
+  /** Release the phone, then close the connection if lease() opened it. */
+  override close(): void {
+    const id = this.leaseId;
+    this.leaseId = undefined;
+    const done = () => super.close();
+    if (id === undefined) return done();
+    this.client.release(id).catch(() => undefined).finally(done);
+  }
+}
+
+/**
+ * Like connect(), but borrows a free phone so no other script can use it.
+ * @example const d = await lease({ wait: 60 }); try { ... } finally { await d.release(); d.close(); }
+ */
+export async function lease(options: LeaseOptions = {}): Promise<LeasedDevice> {
+  const { host, port, token, ...rest } = options;
+  const client = new Droidline({ host, port, token });
+  try {
+    const d = await client.lease(rest);
+    ownedDevices.add(d);
+    return d;
+  } catch (err) {
+    client.close();
+    throw err;
   }
 }
 

@@ -131,8 +131,10 @@ Claude Code에서는 `claude mcp add droidline -- droidline mcp`. 그 밖의 언
 - **선반 가득한 폰.** PC 한 대가 여러 폰을 다룹니다. 한 폰에 보낸 명령은 순서대로, 다른 폰끼리는 동시에 실행되며, 폰마다 원하는 이름을 붙일 수 있습니다.
 - **앱별 프록시.** 고른 앱만 로컬 VPN을 거쳐 socks5나 http 업스트림으로 보냅니다. 폰마다 업스트림 하나, 루팅 없이.
 - **PC에서 받는 알림.** 하나를 기다리거나, 모두에 반응하거나, 답장, 열기, 지우기를 하거나, 서명된 웹훅으로 넘길 수 있습니다.
-- **새 모바일 IP.** `batch`는 폰이 오프라인인 동안에도 폰에서 계속 돌기 때문에, 비행기 모드 켜기, 대기, 끄기를 명령 하나로 할 수 있습니다.
+- **새 모바일 IP.** `cuts_network`를 준 `batch`는 폰이 오프라인인 동안에도 폰에서 계속 돌기 때문에, 비행기 모드 켜기, 대기, 끄기를 호출 하나로 할 수 있습니다. 설정 화면은 먼저 `intent`로 엽니다. 단계별 방법은 [레시피](https://droidline.dev/ko/docs/recipes/#설정-앱-강제-종료-데이터-삭제-네트워크-전환)에 있습니다.
 - **두 번 실행되지 않습니다.** 모바일 데이터가 끊겼던 폰은 끊긴 지점부터 이어 가고, 보내던 명령은 다시 실행하지 않고 폰에 남아 있던 응답으로 답합니다.
+- **잘 버티는 선택자.** 조건을 묶거나 옆의 요소로 가리킬 수 있습니다: `touch({"class": "android.widget.Switch", "row": {"text": "Wi-Fi"}})`. `find`는 누르고 그 안을 다시 찾을 수 있는 요소를 돌려주고, `wait_idle`은 화면이 더 바뀌지 않을 때까지 기다립니다.
+- **켜기 전에는 꺼져 있는 선택 도구.** `droidline inspect`는 화면과 요소를 보여 주고, 선택자를 코드와 함께 추천하며, 폰을 쓰는 동안 스크립트를 녹화합니다. `droidline webdriver`로 Appium 클라이언트와 스크립트가 폰을 다룹니다. 그 밖에 pytest 플러그인, 스크립트끼리 폰을 나눠 쓰는 lease, 요소가 없는 화면을 위한 그림과 글자 찾기가 있습니다.
 - **한국어, English, 简体中文**을 앱, 에러 메시지, 문서 모두에서 지원합니다.
 
 ## 스크린샷
@@ -171,7 +173,7 @@ Droidline은 일반 앱이 받을 수 있는 권한만 씁니다. 그래서 못 
 
 - 다른 앱이 공개하지 않은 화면은 열 수 없습니다. `launch`는 대신 시작 화면을 엽니다.
 - PIN, 패턴, 비밀번호 잠금 화면은 풀 수 없습니다.
-- 강제 종료, 데이터 삭제, 네트워크 전환은 설정 화면의 버튼을 대신 누르는 방식이라 몇 초 걸리고, 제조사마다 문구가 다릅니다.
+- 앱 강제 종료, 데이터 삭제, 네트워크 전환을 한 번에 하는 명령은 없습니다. 설정 앱은 제조사, Android 버전, 언어마다 달라서 [레시피](https://droidline.dev/ko/docs/recipes/#설정-앱-강제-종료-데이터-삭제-네트워크-전환)가 설정 화면의 버튼을 누르며, 내 폰에 맞게 버튼 이름을 고쳐야 할 수 있습니다. 선택 기능인 기기 소유자 모드에서는 `clear_data`가 앱 데이터를 바로 지웁니다.
 - 게임이나 일부 직접 그리는 앱은 요소를 내보이지 않습니다. 이런 곳은 `tap` 좌표와 `color(x, y)`를 씁니다.
 - Android 15 이상은 알림 속 인증번호를 앱에서 가립니다. 도착 여부는 알 수 있고, 번호는 앱 화면에서 읽습니다.
 
@@ -185,6 +187,9 @@ Droidline은 일반 앱이 받을 수 있는 권한만 씁니다. 그래서 못 
 | 폰 없이 첫 스크립트 작성 | [첫 스크립트 만들기](https://droidline.dev/ko/docs/tutorial/) |
 | 내 언어로 쓰기 | [Python](https://droidline.dev/ko/docs/python/) · [Node.js](https://droidline.dev/ko/docs/nodejs/) · [CLI](https://droidline.dev/ko/docs/cli/) · [HTTP](https://droidline.dev/ko/docs/http/) · [AI 에이전트](https://droidline.dev/ko/docs/ai-agents/) |
 | 화면에서 알맞은 요소 찾기 | [요소 찾기](https://droidline.dev/ko/docs/finding-elements/) |
+| 요소를 눌러 보며 찾거나, 스크립트 녹화하기 | [화면 검사와 녹화](https://droidline.dev/ko/docs/inspector/) |
+| Appium 스크립트 실행하기 | [Appium과 WebDriver](https://droidline.dev/ko/docs/appium/) |
+| pytest나 Node.js로 테스트하기 | [테스트 프레임워크](https://droidline.dev/ko/docs/testing/) |
 | 검증된 패턴 가져다 쓰기 | [레시피](https://droidline.dev/ko/docs/recipes/) |
 | 명령 찾아보기 | [명령어 레퍼런스](https://droidline.dev/ko/docs/commands/) |
 | 모바일 데이터의 폰에 연결 | [원격 연결](https://droidline.dev/ko/docs/remote/) |
@@ -219,7 +224,7 @@ cd agent && ./gradlew assembleDebug testDebugUnitTest
 
 ## 기여하기
 
-풀 리퀘스트를 환영합니다. 명세, 생성기, 테스트가 어떻게 맞물리는지는 [CONTRIBUTING.md](CONTRIBUTING.md)에 있습니다. 지금 가장 도움이 되는 기여는 실제 폰에서의 사용 후기입니다. 제조사와 Android 버전, 그리고 `kill`, `clear_data`, 네트워크 전환이 되는지 알려 주세요. Droidline이 탭을 몇 번이라도 줄여 줬다면, ⭐ 하나가 다른 사람들이 찾는 데 도움이 됩니다.
+풀 리퀘스트를 환영합니다. 명세, 생성기, 테스트가 어떻게 맞물리는지는 [CONTRIBUTING.md](CONTRIBUTING.md)에 있습니다. 지금 가장 도움이 되는 기여는 실제 폰에서의 사용 후기입니다. 제조사와 Android 버전, 그리고 강제 종료, 데이터 삭제, 네트워크 전환을 위한 [설정 앱 레시피](https://droidline.dev/ko/docs/recipes/#설정-앱-강제-종료-데이터-삭제-네트워크-전환)가 그 폰의 버튼 이름으로 동작하는지 알려 주세요. Droidline이 탭을 몇 번이라도 줄여 줬다면, ⭐ 하나가 다른 사람들이 찾는 데 도움이 됩니다.
 
 ## 현황
 

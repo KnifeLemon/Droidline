@@ -55,11 +55,12 @@ If the device is offline the command waits for it to reconnect, up to `offline_w
 
 ### 3.2 Network-cutting commands
 
-`data(false)`, `wifi(false)`, `airplane(true)` and a `batch` containing one of them cut the phone's own link. The phone answers before acting:
+A `batch` with `"cuts_network":true` next to `"steps"` is network-cutting: its steps turn off the phone's own link, for example Wi-Fi off and on again. Only this flag marks a call this way; a batch without it is answered like any other command. The phone answers before running the steps:
 
 ```json
+{"id":7,"cmd":"batch","steps":[["touch",{"class":"android.widget.Switch","visible":true}],["sleep",3000],["touch",{"class":"android.widget.Switch","visible":true}]],"cuts_network":true}
 {"id":7,"ok":true,"accepted":true}
-{"event":"result","id":7,"device":"shelf-01","ok":true,"via":"settings_macro","ms":2300}
+{"event":"result","id":7,"device":"shelf-01","ok":true,"results":[{"ok":true,"via":"node","ms":210},{"ok":true},{"ok":true,"via":"node","ms":190}]}
 ```
 
 The `result` event arrives once the phone is back. Set `"wait":true` on the request to skip the `accepted` line and receive the final result as the normal response instead (it then also obeys `offline_wait`, counted from the moment of acceptance).
@@ -255,12 +256,12 @@ The phone sends `{"event":"ping","t":1791360000000}` every 25 seconds (`welcome.
 ### 4.10 Phone-side batch
 
 ```json
-{"id":20,"cmd":"batch","steps":[{"cmd":"airplane","on":true},{"cmd":"sleep","ms":3000},{"cmd":"airplane","on":false}],"stop_on_error":true}
+{"id":20,"cmd":"batch","steps":[{"cmd":"touch","by":{"class":"android.widget.Switch","visible":true}},{"cmd":"sleep","ms":3000},{"cmd":"touch","by":{"class":"android.widget.Switch","visible":true}}],"stop_on_error":true,"cuts_network":true}
 {"id":20,"n":50,"ok":true,"accepted":true}
-{"event":"result","n":51,"id":20,"ok":true,"results":[{"ok":true,"via":"settings_macro","ms":2100},{"ok":true},{"ok":true,"via":"settings_macro","ms":1900}]}
+{"event":"result","n":51,"id":20,"ok":true,"results":[{"ok":true,"via":"node","ms":210},{"ok":true},{"ok":true,"via":"node","ms":190}]}
 ```
 
-The phone answers `accepted` first when any step cuts the network, otherwise it answers with the results directly.
+The phone answers `accepted` first when the batch carries `"cuts_network":true`, otherwise it answers with the results directly.
 
 ## 5. Pairing QR
 

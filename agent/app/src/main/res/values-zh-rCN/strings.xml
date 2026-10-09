@@ -101,4 +101,8 @@
     <string name="pair_link_title">与 %1$s 配对？</string>
     <string name="pair_link_warning">只有在你刚刚于自己的电脑上运行了 droidline pair 时才继续。控制那台电脑的人也能控制这部手机。</string>
     <string name="btn_pair_confirm">配对</string>
+    <string name="owner_title">设备所有者模式</string>
+    <string name="owner_body">已开启。clear_data 直接清除数据，关闭此模式前无法卸载本应用。</string>
+    <string name="btn_owner_release">关闭</string>
+    <string name="owner_release_confirm">要关闭设备所有者模式吗？clear_data 将无法使用，本应用也可以正常卸载。再次开启需要电脑。</string>
 </resources>

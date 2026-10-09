@@ -66,11 +66,12 @@ object ProxyController {
         val req = ProxyVpnService.Request(server.port, targets)
         ProxyVpnService.pending = req
         ctx.startService(Intent(ctx, ProxyVpnService::class.java))
-        val outcome = withTimeoutOrNull(5000) { req.result.await() } ?: "timeout"
+        // The service answers null on success, so map it before the timeout's own null.
+        val outcome = withTimeoutOrNull(5000) { req.result.await() ?: "ok" } ?: "timeout"
         when {
             outcome == "permission" -> { server.close(); throw CmdError.noPermission("vpn") }
             outcome.startsWith("app:") -> { server.close(); Apps.requireInstalled(ctx, outcome.removePrefix("app:")) }
-            outcome == "timeout" -> { server.close(); throw CmdError("TIMEOUT", mapOf("cmd" to "proxy", "timeout" to 5)) }
+            outcome == "timeout" -> { server.close(); stop(ctx); throw CmdError("TIMEOUT", mapOf("cmd" to "proxy", "timeout" to 5)) }
         }
         local = server
         upstream = up

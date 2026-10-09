@@ -66,7 +66,6 @@ type Command struct {
 	Scope       string   `json:"scope"`
 	Requires    []string `json:"requires,omitempty"`
 	Condition   bool     `json:"condition,omitempty"`
-	Macro       bool     `json:"macro,omitempty"`
 	CutsNetwork *Cut     `json:"cuts_network,omitempty"`
 	Summary     I18n     `json:"summary"`
 	Notes       I18n     `json:"notes,omitempty"`
@@ -75,6 +74,10 @@ type Command struct {
 	Errors      []string `json:"errors,omitempty"`
 	Aliases     []Alias  `json:"aliases,omitempty"`
 	SDKSave     string   `json:"sdk_save,omitempty"`
+	SDKWrap     string   `json:"sdk_wrap,omitempty"`
+	SDKManual   bool     `json:"sdk_manual,omitempty"`
+	// RunsOn "server" marks a phone command the PC carries out itself, using screenshots and taps.
+	RunsOn string `json:"runs_on,omitempty"`
 	MCP         *bool    `json:"mcp,omitempty"`
 	MinSDK      int      `json:"min_sdk,omitempty"`
 	Example     string   `json:"example,omitempty"`
@@ -118,6 +121,7 @@ type ErrorDef struct {
 type Spec struct {
 	Proto        int                `json:"proto"`
 	Selectors    []Selector         `json:"selectors"`
+	Query        QueryDef           `json:"query"`
 	CommonParams map[string]Param   `json:"common_params"`
 	Errors       []ErrorDef         `json:"errors"`
 	Commands     []*Command         `json:"commands"`
@@ -128,6 +132,16 @@ type Spec struct {
 	aliases map[string]aliasTarget
 	errors  map[string]*ErrorDef
 	batch   map[string]*Command
+}
+
+// QueryDef documents the keys a query object accepts; spec/query.go implements them.
+type QueryDef struct {
+	Doc  I18n `json:"doc"`
+	Keys []struct {
+		Key  string `json:"key"`
+		Type string `json:"type"`
+		Doc  I18n   `json:"doc"`
+	} `json:"keys"`
 }
 
 type TypeDef struct {
@@ -173,7 +187,14 @@ func Parse(data []byte) (*Spec, error) {
 			if !ok {
 				return fmt.Errorf("command %s: unknown param ref %q", c.Name, p.Ref)
 			}
+			// A ref may override the default and the doc, as find_all does for timeout.
 			base.Name = p.Ref
+			if p.Default != nil {
+				base.Default = p.Default
+			}
+			if p.Doc != nil {
+				base.Doc = p.Doc
+			}
 			c.Params[i] = base
 		}
 		return nil

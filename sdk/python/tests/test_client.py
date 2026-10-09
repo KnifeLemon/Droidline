@@ -74,7 +74,7 @@ def test_events_interleaved_with_responses(server: FakeServer) -> None:
             return server.default(conn, msg)
         conn.send({"event": "screen", "device": "a1b2c3d4", "package": "com.kakao.talk"})
         # A late result for an older request carries an id too; it must not resolve this call.
-        conn.send({"event": "result", "id": msg["id"], "ok": True, "via": "settings_macro"})
+        conn.send({"event": "result", "id": msg["id"], "ok": True, "results": []})
         conn.reply(msg, via="node", ms=5)
         conn.send({"event": "toast", "device": "a1b2c3d4", "text": "저장됨"})
 
@@ -202,38 +202,37 @@ def test_which_and_batch_send_tuples_as_arrays(server: FakeServer) -> None:
     assert d.which([("text", "로그인"), ("id", "x")], timeout=10) == 1
     assert server.sent_params("which") == {"cmd": "which", "candidates": [["text", "로그인"], ["id", "x"]], "timeout": 10}
 
-    d.batch([("airplane", True), ("sleep", 3000), ("airplane", False)])
+    d.batch([("touch", "text", "Wi-Fi"), ("sleep", 3000), ("touch", "text", "Wi-Fi")])
     assert server.sent_params("batch") == {
         "cmd": "batch",
-        "steps": [["airplane", True], ["sleep", 3000], ["airplane", False]],
+        "steps": [["touch", "text", "Wi-Fi"], ["sleep", 3000], ["touch", "text", "Wi-Fi"]],
     }
 
 
-def test_wait_flag_on_network_cutting_commands(server: FakeServer) -> None:
+def test_wait_flag_on_network_cutting_batches(server: FakeServer) -> None:
     def handler(conn, msg):
-        if msg["cmd"] != "airplane":
+        if msg["cmd"] != "batch":
             return server.default(conn, msg)
         if msg.get("wait"):
-            conn.reply(msg, via="settings_macro", ms=2300)
+            conn.reply(msg, results=[{"ok": True}])
         else:
             conn.reply(msg, accepted=True)
-            conn.send({"event": "result", "id": msg["id"], "device": "a1b2c3d4", "ok": True, "via": "settings_macro"})
+            conn.send({"event": "result", "id": msg["id"], "device": "a1b2c3d4", "ok": True, "results": [{"ok": True}]})
 
     server.handler = handler
     d = connect(port=server.port)
     late = []
     d.client.on("result", late.append)
+    steps = [("touch", "text", "Wi-Fi"), ("sleep", 3000), ("touch", "text", "Wi-Fi")]
 
-    assert d.airplane(True) == {"accepted": True}
-    assert "wait" not in server.last("airplane")
+    assert d.batch(steps, cuts_network=True) == {"accepted": True}
+    assert "wait" not in server.last("batch")
     wait_until(lambda: len(late) == 1)
-    assert late[0]["via"] == "settings_macro"
+    assert late[0]["results"] == [{"ok": True}]
 
-    assert d.airplane(False, wait=True) == {"via": "settings_macro", "ms": 2300}
-    assert server.sent_params("airplane") == {"cmd": "airplane", "on": False, "wait": True}
-
-    d.batch([("airplane", True), ("airplane", False)], wait=True)
+    assert d.batch(steps, cuts_network=True, wait=True) == {"results": [{"ok": True}]}
     assert server.last("batch")["wait"] is True
+    assert server.last("batch")["cuts_network"] is True
 
 
 def test_token_is_sent_as_the_first_line(server: FakeServer) -> None:
@@ -293,7 +292,7 @@ def test_reconnects_after_the_server_drops_the_connection(server: FakeServer) ->
 
 def test_call_in_flight_fails_when_the_connection_drops(server: FakeServer) -> None:
     def handler(conn, msg):
-        if msg["cmd"] == "kill":
+        if msg["cmd"] == "launch":
             conn.close()
         else:
             server.default(conn, msg)
@@ -301,7 +300,7 @@ def test_call_in_flight_fails_when_the_connection_drops(server: FakeServer) -> N
     server.handler = handler
     d = connect(port=server.port)
     with pytest.raises(ConnectionLostError):
-        d.kill("com.kakao.talk")
+        d.launch("com.kakao.talk")
     assert d.home() is None
 
 
@@ -367,3 +366,76 @@ def test_server_not_running_names_droidline_serve() -> None:
     with pytest.raises(ServerNotRunningError) as info:
         connect(port=free_port())
     assert "droidline serve" in str(info.value)
+
+
+NODE = {"text": "Wi-Fi", "id": "android:id/title", "desc": "", "class": "android.widget.TextView", "bounds": [40, 330, 400, 380], "checked": False}
+
+
+def test_query_selectors_and_input_after_a_query(server: FakeServer) -> None:
+    d = connect(port=server.port)
+    d.touch({"text": "확인", "clickable": True})
+    assert server.sent_params("touch") == {"cmd": "touch", "by": {"text": "확인", "clickable": True}}
+    d.input({"editable": True}, "knife")
+    assert server.sent_params("input") == {"cmd": "input", "by": {"editable": True}, "text": "knife"}
+    d.input("id", "email", "knife")
+    assert server.sent_params("input") == {"cmd": "input", "by": "id", "value": "email", "text": "knife"}
+
+
+def test_find_returns_elements_that_act_on_themselves(server: FakeServer) -> None:
+    def handler(conn, msg):
+        if msg["cmd"] == "find":
+            return conn.reply(msg, value=NODE)
+        if msg["cmd"] == "find_all":
+            return conn.reply(msg, value=[NODE, dict(NODE, text="Bluetooth", bounds=[40, 530, 400, 580])])
+        return server.default(conn, msg)
+
+    server.handler = handler
+    d = connect(port=server.port)
+    el = d.find("text", "Wi-Fi")
+    assert (el.text, el.id, el.class_name, el.bounds, el.center) == ("Wi-Fi", "android:id/title", "android.widget.TextView", (40, 330, 400, 380), (220, 355))
+    assert el["checked"] is False
+    el.click()
+    assert server.sent_params("touch") == {"cmd": "touch", "by": {"bounds": [40, 330, 400, 380], "class": "android.widget.TextView"}, "timeout": 0}
+    el.find("id", "summary")
+    assert server.sent_params("find")["by"] == {"id": "summary", "inside": {"bounds": [40, 330, 400, 380], "class": "android.widget.TextView"}}
+    assert [e.text for e in d.find_all("id", "title")] == ["Wi-Fi", "Bluetooth"]
+
+
+def test_lease_carries_the_lease_and_releases(server: FakeServer) -> None:
+    def handler(conn, msg):
+        if msg["cmd"] == "lease":
+            return conn.reply(msg, lease="l-1", device="a1b2c3d4", name="shelf-01", ttl=300)
+        return server.default(conn, msg)
+
+    server.handler = handler
+    from droidline import lease
+
+    with lease(wait=5, port=server.port) as d:
+        d.home()
+        assert server.sent_params("home") == {"cmd": "home", "device": "a1b2c3d4", "lease": "l-1"}
+    assert server.sent_params("release") == {"cmd": "release", "lease": "l-1"}
+    assert server.sent_params("lease") == {"cmd": "lease", "wait": 5}
+
+
+def test_history_and_image_files(server: FakeServer, tmp_path) -> None:
+    def handler(conn, msg):
+        if msg["cmd"] == "exists":
+            return conn.send({"id": msg["id"], "ok": False, "error": "NOT_FOUND", "msg": "not there"})
+        return server.default(conn, msg)
+
+    server.handler = handler
+    d = connect("shelf-01", port=server.port)
+    d.home()
+    with pytest.raises(NotFoundError):
+        d.exists("text", "x")
+    entries = d.history
+    assert entries[-2]["cmd"] == "home" and entries[-2]["ok"] is True
+    assert entries[-1]["ok"] is False and entries[-1]["error"] == "NOT_FOUND"
+
+    pic = tmp_path / "button.png"
+    pic.write_bytes(PNG_BYTES)
+    d.find_image(str(pic))
+    sent = server.sent_params("find_image")
+    assert sent["image"] and sent["image"] != str(pic)
+    d.find_image(PNG_BYTES)
+    assert server.sent_params("find_image")["image"] == sent["image"]

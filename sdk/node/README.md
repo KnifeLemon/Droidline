@@ -24,7 +24,8 @@ await d.sendkey("enter");
 if (await d.exists("text", "광고 닫기")) {
   await d.touch("text", "광고 닫기");
 }
-await d.batch([["airplane", true], ["sleep", 3000], ["airplane", false]]);
+await d.intent("android.settings.WIFI_SETTINGS");    // open a Settings page by its intent action
+await d.waitIdle();
 ```
 
 Method names match the protocol (`long_tap`), and each has a camelCase alias (`longTap`). Optional parameters go by position or in an options object as the last argument: `d.wait("text", "완료", { timeout: 30 })`.

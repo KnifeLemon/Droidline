@@ -85,7 +85,25 @@ func (d *Device) Online() bool {
 	return d.sess != nil
 }
 
+func (d *Device) sdk() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.rec.SDK
+}
+
+func (d *Device) model() string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.rec.Model
+}
+
 func (d *Device) Info() map[string]any {
+	info := d.info()
+	info["leased"] = d.hub.isLeased(d.ID)
+	return info
+}
+
+func (d *Device) info() map[string]any {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	info := map[string]any{
@@ -195,8 +213,8 @@ func wireMessage(c *Call) map[string]any {
 	return m
 }
 
-// callTimeout covers the command's own wait plus the time a settings macro or
-// a slow mobile link may add, and an offline gap within the call.
+// callTimeout covers the command's own wait plus the time a batch or a slow
+// mobile link may add, and an offline gap within the call.
 func callTimeout(c *Call) time.Duration {
 	t := 30 * time.Second
 	if f, ok := c.Params["timeout"].(float64); ok {
@@ -410,7 +428,7 @@ func (d *Device) onEvent(sess *agentlink.Session, ev string, m map[string]any) {
 	case "notification":
 		m["device"] = d.ID
 		d.hub.onNotification(d, m)
-	case "screen", "toast":
+	case "screen", "toast", "action":
 		m["device"] = d.ID
 		d.hub.broadcast(ev, d.ID, m)
 	}
@@ -457,7 +475,7 @@ func (h *Hub) finishResult(d *Device, c *Call, r Result) Result {
 		fields["cmd"] = c.Cmd.Name
 	}
 	fields["device"] = d.Name()
-	if code == "NOT_FOUND" || code == "MACRO_FAILED" {
+	if code == "NOT_FOUND" {
 		if s, ok := fields["screen"].(string); ok {
 			fields["screen"] = strings.Replace(s, "/", " / ", 1)
 		}

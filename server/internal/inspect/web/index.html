@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Droidline Inspect</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Nunito:wght@500;700;800;900&display=swap">
+<link rel="stylesheet" href="inspector.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='2' width='20' height='26' rx='6' fill='%23FF6B21'/%3E%3Crect x='9' y='5' width='14' height='17' rx='3' fill='%231A1004'/%3E%3Crect x='12' y='10' width='2' height='4' rx='1' fill='%23FF6B21'/%3E%3Crect x='18' y='10' width='2' height='4' rx='1' fill='%23FF6B21'/%3E%3Crect x='12' y='17' width='8' height='1.6' rx='.8' fill='%23FF6B21'/%3E%3C/svg%3E">
+<script type="module" src="inspector.js"></script>
+</head>
+<body>
+<header class="bar">
+  <div class="brand" aria-label="droidline inspect">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="2" width="20" height="26" rx="6" class="mark-body"/><path d="M6 22 L2 30 L12 26 Z" class="mark-body"/><rect x="9" y="5" width="14" height="17" rx="3" class="mark-screen"/><rect x="12" y="10" width="2" height="4" rx="1" class="mark-face"/><rect x="18" y="10" width="2" height="4" rx="1" class="mark-face"/><rect x="12" y="17" width="8" height="1.6" rx=".8" class="mark-face"/></svg>
+    <span class="word">droidline</span><span class="sub" data-t="inspect">inspect</span>
+  </div>
+  <label class="device">
+    <span class="label" data-t="phone">Phone</span>
+    <select id="device"></select>
+  </label>
+  <div class="actions">
+    <button id="refresh" class="primary" data-t="refresh">Read the screen</button>
+    <button id="theme" class="ghost" aria-label="Theme" title="Theme"><span id="theme-label">Auto</span></button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="panel screen-panel" aria-labelledby="screen-title">
+    <h2 id="screen-title" class="panel-title"><span data-t="screen">Screen</span><span id="where" class="where"></span></h2>
+    <div id="screen-state" class="state" role="status"></div>
+    <div id="screen" class="screen" hidden>
+      <img id="shot" alt="" draggable="false">
+      <div id="outlines" class="outlines" aria-hidden="true"></div>
+      <div id="hover-box" class="box hover" hidden></div>
+      <div id="pick-box" class="box pick" hidden></div>
+    </div>
+    <p id="shot-note" class="note" hidden></p>
+  </section>
+
+  <section class="panel tree-panel" aria-labelledby="tree-title">
+    <h2 id="tree-title" class="panel-title" data-t="tree">Elements</h2>
+    <div id="tree" class="tree" role="tree"></div>
+  </section>
+
+  <section class="panel side-panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-el" aria-selected="true" aria-controls="pane-el" data-t="element">Element</button>
+      <button role="tab" id="tab-rec" aria-selected="false" aria-controls="pane-rec"><span data-t="recorder">Recorder</span> <span id="rec-dot" class="rec-dot" hidden></span></button>
+    </div>
+
+    <div id="pane-el" role="tabpanel" aria-labelledby="tab-el">
+      <div id="el-empty" class="state" data-t="pick_hint">Click an element on the screen or in the list.</div>
+      <div id="el-body" hidden>
+        <dl id="attrs" class="attrs"></dl>
+        <div class="row-head">
+          <h3 data-t="selectors">Ways to find it</h3>
+          <div class="seg" role="group" aria-label="Command" id="cmds">
+            <button data-cmd="touch">touch</button>
+            <button data-cmd="long_touch">long_touch</button>
+            <button data-cmd="input">input</button>
+            <button data-cmd="get_text">get_text</button>
+          </div>
+        </div>
+        <div class="seg langs" role="group" aria-label="Language" id="langs">
+          <button data-lang="python">Python</button>
+          <button data-lang="node">Node.js</button>
+          <button data-lang="cli">CLI</button>
+        </div>
+        <ol id="selectors" class="selectors"></ol>
+      </div>
+    </div>
+
+    <div id="pane-rec" role="tabpanel" aria-labelledby="tab-rec" hidden>
+      <p class="note" data-t="rec_about">Use the phone as usual. Each tap and each text you type becomes a line of code. Back and home are not recorded; add d.back() yourself.</p>
+      <div class="rec-actions">
+        <button id="rec-toggle" class="primary" data-t="rec_start">Start recording</button>
+        <button id="rec-clear" class="ghost" data-t="rec_clear">Clear</button>
+      </div>
+      <div class="seg langs" role="group" aria-label="Language" id="rec-langs">
+        <button data-lang="python">Python</button>
+        <button data-lang="node">Node.js</button>
+        <button data-lang="cli">CLI</button>
+      </div>
+      <div id="rec-empty" class="state" data-t="rec_empty">No steps yet.</div>
+      <div class="code-wrap" id="rec-wrap" hidden>
+        <pre><code id="rec-code"></code></pre>
+        <button class="copy" data-copy="rec-code" data-t="copy">Copy</button>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

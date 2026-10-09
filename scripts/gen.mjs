@@ -18,14 +18,14 @@ const KINDS = new Set(["value", "fields", "none"]);
 const SAVE_MODES = new Set(["image", "json"]);
 const BASE_TYPES = new Set([
   "string", "int", "number", "bool", "null", "base64", "object", "function",
-  "selector", "selector_pair", "step",
+  "selector", "selector_pair", "step", "image",
 ]);
 
 // Handwritten members of each SDK class; a generated method with one of these names would shadow them.
 const RESERVED = {
   device: ["call", "close", "client", "device", "on_notification", "onNotification"],
   client: [
-    "call", "close", "device", "host", "port", "on", "off", "once", "emit", "addListener",
+    "call", "close", "device", "host", "port", "lease", "release", "on", "off", "once", "emit", "addListener",
     "removeListener", "removeAllListeners", "listeners", "rawListeners", "listenerCount",
     "eventNames", "prependListener", "prependOnceListener", "setMaxListeners", "getMaxListeners",
   ],
@@ -181,6 +181,8 @@ function loadModel(spec) {
       continue;
     }
     if (!claim(c.name, where)) continue;
+    // Handwritten in each SDK, like lease(), which returns a phone object instead of the raw reply.
+    if (c.sdk_manual === true) continue;
     if (!SCOPES.has(c.scope)) fail(where, `unknown scope "${c.scope}"`);
     if (!en(c.summary)) fail(where, "summary.en is missing");
 
@@ -195,7 +197,8 @@ function loadModel(spec) {
       checkType(p.type, `${where} param "${p.name}"`, typeNames);
       if (PY_KEYWORDS.has(p.name)) fail(where, `param "${p.name}" is a Python keyword`);
       if (p.required && sawOptional) fail(where, `required param "${p.name}" follows an optional one`);
-      if (!p.required) sawOptional = true;
+      // value is optional only because a query object replaces it; selectorShape handles what follows.
+      if (!p.required && !(p.name === "value" && paramNames.has("by"))) sawOptional = true;
       if (p.enum && p.hasDefault && !p.enum.includes(p.default)) fail(where, `default of "${p.name}" is not in its enum`);
       if (p.enum && p.type.name !== "string") fail(where, `enum on "${p.name}" needs type string`);
       if (!p.required && (typeIncludes(p.type, "object") || typeIncludes(p.type, "node"))) {
@@ -204,6 +207,12 @@ function loadModel(spec) {
       params.push(p);
     }
     if (c.scope === "device" && paramNames.has("device")) fail(where, `device commands cannot have a "device" param`);
+    if (c.sdk_wrap !== undefined) {
+      const t = c.returns?.type;
+      if (c.sdk_wrap !== "element") fail(where, `unknown sdk_wrap "${c.sdk_wrap}"`);
+      else if (c.returns?.kind !== "value" || (t !== "node" && t !== "list<node>")) fail(where, `sdk_wrap "element" needs returns value node or list<node>`);
+      if (c.scope !== "device" || c.name.includes(".")) fail(where, "sdk_wrap is only for top-level device commands");
+    }
 
     const returns = c.returns ?? {};
     if (!KINDS.has(returns.kind)) fail(where, `unknown returns.kind "${returns.kind}"`);
@@ -269,6 +278,7 @@ function loadModel(spec) {
       fields,
       errors: (c.errors ?? []).filter((code) => errorCodes.has(code)).map((code) => errorCodes.get(code)),
       save: c.sdk_save ?? null,
+      wrap: c.sdk_wrap ?? null,
       cuts,
       takesWait,
       aliases,
@@ -323,9 +333,16 @@ function loadModel(spec) {
     fields: t.fields ?? [],
   }));
 
+  const queryKeys = (spec.query?.keys ?? []).map((k) => {
+    if (!["string", "bool", "bounds", "query"].includes(k.type)) fail(`query key "${k.key}"`, `unknown type "${k.type}"`);
+    return { key: k.key, type: k.type, doc: sentence(en(k.doc)) };
+  });
+
   return {
     proto: spec.proto,
     selectors,
+    queryKeys,
+    queryDoc: sentence(en(spec.query?.doc)),
     errors,
     types,
     typeNames: new Map(types.map((t) => [t.name, t.tName])),
@@ -348,10 +365,21 @@ function methodsOf(cmd) {
     cmd,
     wire: a.name,
     method: a.name,
-    params: cmd.params.filter((p) => p.name !== "by"),
+    params: cmd.params.filter((p) => p.name !== "by").map((p) => (p.name === "value" ? { ...p, required: true } : p)),
     aliasBy: a.by,
   }));
   return [base, ...aliases];
+}
+
+// Commands with by and value: a query object in by replaces value, and required params
+// after value (input's text) move up one place when the caller passes a query.
+function selectorShape(meth) {
+  if (meth.aliasBy) return null;
+  const vi = meth.params.findIndex((p) => p.name === "value");
+  if (vi < 0 || !meth.params.some((p) => p.name === "by")) return null;
+  const shift = meth.params.slice(vi + 1).filter((p) => p.required).map((p) => p.name);
+  if (shift.length > 1) fail(`command "${meth.cmd.name}"`, "only one required param may follow value");
+  return { shift };
 }
 
 function defaultNote(p, literal) {
@@ -362,9 +390,10 @@ function waitDoc(cmd, lang) {
   const t = lang === "py" ? { true: "True", false: "False", acc: '{"accepted": True}' } : { true: "true", false: "false", acc: "{ accepted: true }" };
   const verb = lang === "py" ? "returns" : "resolves with";
   const lead = lang === "py" ? "Block until the phone is back and return the final result." : "Resolve with the final result once the phone is back.";
-  const call = cmd.cuts
-    ? `${cmd.name}(${t[String(cmd.cuts.when)] ?? JSON.stringify(cmd.cuts.when)})`
-    : `a ${cmd.name} with a step that cuts the network`;
+  const val = cmd.cuts ? t[String(cmd.cuts.when)] ?? JSON.stringify(cmd.cuts.when) : "";
+  let call = `a ${cmd.name} with a step that cuts the network`;
+  if (cmd.cuts && cmd.params[0]?.name === cmd.cuts.param) call = `${cmd.name}(${val})`;
+  else if (cmd.cuts) call = lang === "py" ? `${cmd.name}(..., ${cmd.cuts.param}=${val})` : `${cmd.name}(..., { ${cmd.cuts.param}: ${val} })`;
   return `${lead} Without it, ${call} ${verb} ${t.acc} as soon as the phone accepts, and the final result arrives later as a "result" event.`;
 }
 
@@ -423,8 +452,8 @@ function pyType(type, m, ctx, enumValues) {
   if (type.list) return `${ctx === "param" ? "Sequence" : "List"}[${pyType(type.list, m, ctx)}]`;
   const map = {
     string: "str", int: "int", number: "float", bool: "bool", null: "None", base64: "str",
-    object: "Dict[str, Any]", function: "Callable[..., Any]", selector: "By",
-    selector_pair: "Tuple[By, str]", step: "Step",
+    object: "Dict[str, Any]", function: "Callable[..., Any]", selector: "Union[By, Query]",
+    selector_pair: "Union[Tuple[By, str], Query]", step: "Step", image: "Union[str, bytes]",
   };
   return map[type.name] ?? m.typeNames.get(type.name);
 }
@@ -451,6 +480,7 @@ function pyResultName(cmd) {
 }
 
 function pyReturn(cmd, m) {
+  if (cmd.wrap) return cmd.valueType.list ? "List[Element]" : "Element";
   if (cmd.kind === "value") return pyType(cmd.valueType, m, "return");
   if (cmd.kind === "fields") return pyResultName(cmd);
   return "None";
@@ -493,9 +523,10 @@ function pySignature(name, params, ret, indent, decorator) {
 function pyMethod(meth, owner, m, runner) {
   const { cmd } = meth;
   const ind = "    ";
+  const shape = selectorShape(meth);
   const sig = meth.params.map((p) => {
     const t = pyType(p.type, m, "param", p.enum);
-    if (p.required) return `${p.name}: ${t}`;
+    if (p.required && !shape?.shift.includes(p.name)) return `${p.name}: ${t}`;
     return `${p.name}: ${t.startsWith("Optional[") ? t : `Optional[${t}]`} = None`;
   });
   if (cmd.takesWait) sig.push("*", "wait: Optional[bool] = None");
@@ -523,7 +554,15 @@ function pyMethod(meth, owner, m, runner) {
   } else {
     lines.push(...pySignature(meth.method, sig, pyReturn(cmd, m), ind));
     lines.push(doc);
-    lines.push(...pyCallLine(runner.run, [JSON.stringify(meth.wire), JSON.stringify(cmd.kind), reqDict, ...kw], pyReturn(cmd, m), ind + ind));
+    for (const name of shape?.shift ?? []) {
+      lines.push(`${ind}${ind}if not isinstance(by, str) and ${name} is None:`);
+      lines.push(`${ind}${ind}${ind}value, ${name} = None, value`);
+    }
+    for (const p of meth.params.filter((x) => x.type.name === "image")) {
+      lines.push(`${ind}${ind}${p.name} = self._load_image(${p.name})`);
+    }
+    const hook = cmd.wrap ? `${runner.run}_element` : runner.run;
+    lines.push(...pyCallLine(hook, [JSON.stringify(meth.wire), JSON.stringify(cmd.kind), reqDict, ...kw], pyReturn(cmd, m), ind + ind));
   }
   return lines.join("\n");
 }
@@ -535,14 +574,21 @@ function renderPython(m) {
   L.push("");
   L.push("from __future__ import annotations");
   L.push("");
-  L.push("from typing import Any, Callable, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Type, TypedDict, Union, cast, overload");
+  L.push("from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Mapping, Optional, Sequence, Tuple, Type, TypedDict, Union, cast, overload");
   L.push("");
   L.push("from ._errors import DroidlineError");
+  L.push("");
+  L.push("if TYPE_CHECKING:");
+  L.push("    from ._element import Element");
   L.push("");
   L.push(`PROTO = ${m.proto}`);
   L.push("");
   L.push(`By = Literal[${m.selectors.map(pyLiteral).join(", ")}]`);
   L.push("Step = Union[Sequence[Any], Mapping[str, Any]]");
+  L.push("");
+  const pyQueryType = { string: "str", bool: "bool", bounds: "Sequence[int]", query: '"Query"' };
+  L.push(pyTypedDict("Query", m.queryKeys.map((k) => `${JSON.stringify(k.key)}: ${pyQueryType[k.type]}`), false));
+  if (m.queryDoc) L.push(pyDocLine(m.queryDoc));
   L.push("");
 
   for (const t of m.types) {
@@ -579,6 +625,12 @@ function renderPython(m) {
       "        raise NotImplementedError",
     ];
     if (save) {
+      out.push("");
+      out.push("    def _run_element(self, cmd: str, kind: str, required: Dict[str, Any], /, **optional: Any) -> Any:");
+      out.push("        raise NotImplementedError");
+      out.push("");
+      out.push("    def _load_image(self, image: Union[str, bytes]) -> str:");
+      out.push("        raise NotImplementedError");
       for (const mode of ["image", "json"]) {
         out.push("");
         out.push(`    def _save_${mode}(self, cmd: str, path: Optional[str], required: Dict[str, Any], /, **optional: Any) -> Any:`);
@@ -634,7 +686,7 @@ function renderPython(m) {
   L.push("", "");
 
   const exported = [
-    "PROTO", "By", "Step", ...m.types.map((t) => t.tName), ...fieldCommands.map(pyResultName),
+    "PROTO", "By", "Query", "Step", ...m.types.map((t) => t.tName), ...fieldCommands.map(pyResultName),
     ...m.errors.map((e) => e.pyName), "ERRORS", ...[...m.namespaces.keys()].map((ns) => `${pascal(ns)}Commands`),
     "DeviceCommands", "ClientCommands",
   ];
@@ -654,8 +706,8 @@ function tsType(type, m, ctx, enumValues) {
   }
   const map = {
     string: "string", int: "number", number: "number", bool: "boolean", null: "null", base64: "string",
-    object: "Record<string, any>", function: "(...args: any[]) => unknown", selector: "By",
-    selector_pair: "readonly [By, string]", step: "Step",
+    object: "Record<string, any>", function: "(...args: any[]) => unknown", selector: "By | Query",
+    selector_pair: "readonly [By, string] | Query", step: "Step", image: "string | Uint8Array",
   };
   return map[type.name] ?? m.typeNames.get(type.name);
 }
@@ -676,6 +728,7 @@ const tsOptionsName = (cmd) => `${pascal(cmd.name)}Options`;
 const hasOptions = (cmd) => cmd.takesWait || cmd.params.some((p) => !p.required && p.name !== "path");
 
 function tsReturn(cmd, m) {
+  if (cmd.wrap) return cmd.valueType.list ? "Element[]" : "Element";
   if (cmd.kind === "value") return tsType(cmd.valueType, m, "return");
   if (cmd.kind === "fields") return tsResultName(cmd);
   return "void";
@@ -701,6 +754,7 @@ function tsDoc(meth, owner, alias) {
 
 function tsMethod(meth, owner, m, name, alias) {
   const { cmd } = meth;
+  const shape = selectorShape(meth);
   const ind = "  ";
   const doc = tsComment(tsDoc(meth, owner, alias), ind);
   const req = meth.params.filter((p) => p.required);
@@ -727,16 +781,37 @@ function tsMethod(meth, owner, m, name, alias) {
     overload([...reqSig, "path: string", ...optsArg], ret);
     positional = ["path"];
     hook = "_saveJson";
+  } else if (shape) {
+    // Two forms: (by, value, ...) for a field selector, (query, ...) where the query replaces value.
+    const after = opt.filter((p) => p.name !== "value");
+    const optSig = after.map((p) => `${tsIdent(p.name)}?: ${tsType(p.type, m, "param", p.enum)}`);
+    const shiftSig = meth.params.filter((p) => shape.shift.includes(p.name)).map((p) => `${tsIdent(p.name)}: ${tsType(p.type, m, "param", p.enum)}`);
+    const reqOthers = reqSig.filter((_, i) => req[i].name !== "by" && !shape.shift.includes(req[i].name));
+    for (let k = 0; k <= optSig.length; k++) overload(["by: By", "value: string", ...shiftSig, ...reqOthers, ...optSig.slice(0, k), ...optsArg], ret);
+    for (let k = 0; k <= optSig.length; k++) overload(["by: Query", ...shiftSig, ...reqOthers, ...optSig.slice(0, k), ...optsArg], ret);
+    positional = after.map((p) => p.name);
   } else {
     // One overload per prefix of positional optionals, each closed by the options object.
     const optSig = opt.map((p) => `${tsIdent(p.name)}?: ${tsType(p.type, m, "param", p.enum)}`);
     for (let k = 0; k <= optSig.length; k++) overload([...reqSig, ...optSig.slice(0, k), ...optsArg], ret);
   }
   const list = (names) => `[${names.map((n) => JSON.stringify(n)).join(", ")}]`;
-  const collectArgs = `collect(${JSON.stringify(meth.wire)}, args, ${list(req.map((p) => p.name))}, ${list(positional)})`;
+  let collectArgs = `collect(${JSON.stringify(meth.wire)}, args, ${list(req.map((p) => p.name))}, ${list(positional)})`;
+  if (shape && !cmd.save) {
+    const reqNames = req.map((p) => p.name).filter((n) => n !== "by");
+    const forField = list(["by", "value", ...reqNames]);
+    const forQuery = list(["by", ...reqNames]);
+    collectArgs = `collect(${JSON.stringify(meth.wire)}, args, typeof args[0] === "string" ? ${forField} : ${forQuery}, ${list(positional)})`;
+  }
   lines.push(`${ind}async ${name}(...args: unknown[]): Promise<${ret}> {`);
+  const images = meth.params.filter((p) => p.type.name === "image").map((p) => p.name);
+  if (images.length && !cmd.save) {
+    lines.push(`${ind}  const params = ${collectArgs};`);
+    for (const n of images) lines.push(`${ind}  params[${JSON.stringify(n)}] = await this._loadImage(params[${JSON.stringify(n)}]);`);
+    collectArgs = "params";
+  }
   if (cmd.save) lines.push(`${ind}  return this.${hook}(${JSON.stringify(meth.wire)}, ${collectArgs});`);
-  else lines.push(`${ind}  return this._run(${JSON.stringify(meth.wire)}, ${JSON.stringify(cmd.kind)}, ${collectArgs});`);
+  else lines.push(`${ind}  return this.${cmd.wrap ? "_runElement" : "_run"}(${JSON.stringify(meth.wire)}, ${JSON.stringify(cmd.kind)}, ${collectArgs});`);
   lines.push(`${ind}}`);
   return lines.join("\n");
 }
@@ -769,6 +844,7 @@ function renderTs(m) {
   L.push(`// ${HEADER}`);
   L.push('import { EventEmitter } from "node:events";');
   L.push('import { collect, type Params } from "./args.js";');
+  L.push('import type { Element } from "./element.js";');
   L.push("");
   L.push(`export const PROTO = ${m.proto};`);
   L.push("");
@@ -776,6 +852,9 @@ function renderTs(m) {
   L.push("");
   L.push("/** Which dump field a selector matches. */");
   L.push(`export type By = ${m.selectors.map((s) => JSON.stringify(s)).join(" | ")};`);
+  L.push("");
+  const tsQueryType = { string: "string", bool: "boolean", bounds: "readonly [number, number, number, number]", query: "Query" };
+  L.push(tsInterface("Query", m.queryDoc, m.queryKeys.map((k) => ({ name: k.key, type: tsQueryType[k.type], optional: true, doc: k.doc }))));
   L.push("");
   L.push("/** One batch step: [cmd, ...args] or { cmd, ...params }. */");
   L.push("export type Step = ReadonlyArray<unknown> | { readonly cmd: string; readonly [param: string]: unknown };");
@@ -802,7 +881,7 @@ function renderTs(m) {
   for (const c of all) {
     if (hasOptions(c)) {
       const members = c.params
-        .filter((p) => !p.required && p.name !== "path")
+        .filter((p) => !p.required && p.name !== "path" && !(p.name === "value" && c.params.some((x) => x.name === "by")))
         .map((p) => ({ name: p.name, type: tsType(p.type, m, "param", p.enum), optional: true, doc: `${sentence(p.doc)}${p.hasDefault ? ` @default ${JSON.stringify(p.default)}` : ""}` }));
       if (c.takesWait) members.push({ name: "wait", type: "boolean", optional: true, doc: waitDoc(c, "ts") });
       L.push(tsInterface(tsOptionsName(c), null, members));
@@ -835,6 +914,8 @@ function renderTs(m) {
   L.push("  protected abstract _run(cmd: string, kind: ReturnKind, params: Params): Promise<any>;");
   L.push("  protected abstract _saveImage(cmd: string, params: Params): Promise<any>;");
   L.push("  protected abstract _saveJson(cmd: string, params: Params): Promise<any>;");
+  L.push("  protected abstract _runElement(cmd: string, kind: ReturnKind, params: Params): Promise<any>;");
+  L.push("  protected abstract _loadImage(image: unknown): Promise<string>;");
   for (const ns of m.namespaces.keys()) {
     L.push("");
     L.push(`  get ${ns}(): ${pascal(ns)}Commands {`);

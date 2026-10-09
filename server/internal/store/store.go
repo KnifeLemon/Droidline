@@ -42,6 +42,9 @@ type Config struct {
 	Relay struct {
 		URL string `toml:"url"`
 	} `toml:"relay"`
+	OCR struct {
+		Tesseract string `toml:"tesseract"`
+	} `toml:"ocr"`
 	Webhooks []Webhook `toml:"webhooks"`
 }
 
@@ -88,6 +91,11 @@ addresses = []
 [relay]
 # Set with: droidline relay set <url> <token>
 url = ""
+
+[ocr]
+# Path to tesseract for ocr, ocr_find and ocr_tap. Empty looks on PATH.
+# Droidline does not install it; OCR is optional.
+tesseract = ""
 
 # Forward matching notifications as signed POST requests.
 # [[webhooks]]

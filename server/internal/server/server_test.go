@@ -2,11 +2,15 @@ package server
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +18,7 @@ import (
 	"github.com/KnifeLemon/Droidline/server/internal/client"
 	"github.com/KnifeLemon/Droidline/server/internal/fakeagent"
 	"github.com/KnifeLemon/Droidline/server/internal/store"
+	"github.com/KnifeLemon/Droidline/server/internal/webdriver"
 )
 
 type rig struct {
@@ -184,13 +189,13 @@ func TestNetworkCutResultAndResume(t *testing.T) {
 	r.pairByCode()
 
 	// Without wait: accepted now, the result arrives as an event after reconnect.
-	res := r.mustOK(map[string]any{"cmd": "airplane", "on": true})
+	res := r.mustOK(map[string]any{"cmd": "batch", "cuts_network": true, "steps": []any{[]any{"sleep", 100}}})
 	if res["accepted"] != true {
 		t.Fatalf("expected accepted, got %v", res)
 	}
 	select {
 	case ev := <-r.cli.Events:
-		if ev["event"] != "result" || ev["ok"] != true || ev["via"] != "settings_macro" {
+		if ev["event"] != "result" || ev["ok"] != true || ev["results"] == nil {
 			t.Fatalf("result event %v", ev)
 		}
 	case <-time.After(10 * time.Second):
@@ -198,8 +203,8 @@ func TestNetworkCutResultAndResume(t *testing.T) {
 	}
 
 	// With wait: one response carrying the final result.
-	res = r.mustOK(map[string]any{"cmd": "batch", "wait": true, "steps": []any{
-		[]any{"airplane", true}, []any{"sleep", 100}, []any{"airplane", false},
+	res = r.mustOK(map[string]any{"cmd": "batch", "wait": true, "cuts_network": true, "steps": []any{
+		[]any{"home"}, []any{"sleep", 100}, []any{"recents"},
 	}})
 	steps, _ := res["results"].([]any)
 	if res["accepted"] == true || len(steps) != 3 {
@@ -367,5 +372,240 @@ func TestReconnectWhileOldLinkLooksAlive(t *testing.T) {
 	devs := r.mustOK(map[string]any{"cmd": "devices"})["value"].([]any)
 	if devs[0].(map[string]any)["online"] != true {
 		t.Fatal("device should be online")
+	}
+}
+
+func TestQueriesAndElements(t *testing.T) {
+	r := newRig(t)
+	r.pairByCode()
+	r.mustOK(map[string]any{"cmd": "launch", "package": "dev.droidline.demo"})
+
+	r.mustOK(map[string]any{"cmd": "touch", "by": map[string]any{"class": "android.widget.Button", "text": "Close ad"}})
+	if v := r.mustOK(map[string]any{"cmd": "exists", "by": "text", "value": "Close ad"})["value"]; v != false {
+		t.Fatalf("ad still shown: %v", v)
+	}
+	r.mustOK(map[string]any{"cmd": "input", "by": map[string]any{"editable": true, "below": map[string]any{"text": "Sign in"}}, "text": "knife"})
+	if v := r.mustOK(map[string]any{"cmd": "get_text", "by": "id", "value": "email"})["value"]; v != "knife" {
+		t.Fatalf("query input went to the wrong field: %v", v)
+	}
+
+	el := r.mustOK(map[string]any{"cmd": "find", "by": "textMatches", "value": "Log.in"})["value"].(map[string]any)
+	if el["id"] != "dev.droidline.demo:id/login" || el["children"] != nil {
+		t.Fatalf("find = %v", el)
+	}
+	r.mustOK(map[string]any{"cmd": "touch", "by": map[string]any{"bounds": el["bounds"], "class": el["class"]}})
+
+	all := r.mustOK(map[string]any{"cmd": "find_all", "by": "class", "value": "android.widget.CheckBox"})["value"].([]any)
+	if len(all) != 3 {
+		t.Fatalf("find_all found %d checkboxes", len(all))
+	}
+	if none := r.mustOK(map[string]any{"cmd": "find_all", "by": "text", "value": "nothing"})["value"].([]any); len(none) != 0 {
+		t.Fatalf("find_all on nothing = %v", none)
+	}
+	if v := r.mustOK(map[string]any{"cmd": "which", "candidates": []any{map[string]any{"text": "Chats", "selected": true}}})["value"]; v != float64(0) {
+		t.Fatalf("which with a query = %v", v)
+	}
+	r.mustOK(map[string]any{"cmd": "wait_idle", "ms": 100})
+
+	nf := r.call(map[string]any{"cmd": "find", "by": map[string]any{"text": "Nope"}, "timeout": 0.1})
+	if nf["error"] != "NOT_FOUND" || !strings.Contains(nf["msg"].(string), `{"text":"Nope"}`) {
+		t.Fatalf("query not found: %v", nf)
+	}
+	if bad := r.call(map[string]any{"cmd": "touch", "by": map[string]any{"text": "a"}, "value": "b"}); bad["error"] != "BAD_ARGS" {
+		t.Fatalf("value with a query: %v", bad)
+	}
+}
+
+func TestLeases(t *testing.T) {
+	r := newRig(t)
+	r.pairByCode()
+	other := mustDial(t, r.srv)
+
+	// Without a lease nothing changes.
+	r.mustOK(map[string]any{"cmd": "home"})
+
+	l := r.mustOK(map[string]any{"cmd": "lease", "wait": 1, "ttl": 30})
+	id, _ := l["lease"].(string)
+	if id == "" || l["name"] != "shelf-01" {
+		t.Fatalf("lease = %v", l)
+	}
+	devs := r.mustOK(map[string]any{"cmd": "devices"})["value"].([]any)
+	if devs[0].(map[string]any)["leased"] != true {
+		t.Fatalf("devices should show the lease: %v", devs)
+	}
+
+	res, _ := other.Call(map[string]any{"cmd": "home"})
+	if res["error"] != "DEVICE_LEASED" || res["retryable"] != true {
+		t.Fatalf("a request without the lease: %v", res)
+	}
+	// The lease alone names the phone.
+	r.mustOK(map[string]any{"cmd": "home", "lease": id})
+	if busy, _ := other.Call(map[string]any{"cmd": "lease", "wait": 0.3}); busy["error"] != "NO_FREE_DEVICE" {
+		t.Fatalf("second lease: %v", busy)
+	}
+	if bad, _ := other.Call(map[string]any{"cmd": "home", "lease": "l-nope"}); bad["error"] != "LEASE_NOT_FOUND" {
+		t.Fatalf("unknown lease: %v", bad)
+	}
+
+	// A waiting lease gets the phone once it is released.
+	got := make(chan map[string]any, 1)
+	go func() {
+		res, _ := other.Call(map[string]any{"cmd": "lease", "wait": 5})
+		got <- res
+	}()
+	time.Sleep(300 * time.Millisecond)
+	r.mustOK(map[string]any{"cmd": "release", "lease": id})
+	second := <-got
+	if second["ok"] != true || second["lease"] == id {
+		t.Fatalf("waiting lease: %v", second)
+	}
+	if old := r.call(map[string]any{"cmd": "home", "lease": id}); old["error"] != "LEASE_NOT_FOUND" {
+		t.Fatalf("released lease still works: %v", old)
+	}
+	other.Call(map[string]any{"cmd": "release", "lease": second["lease"]})
+	r.mustOK(map[string]any{"cmd": "home"})
+}
+
+func TestImageAndOCR(t *testing.T) {
+	r := newRig(t)
+	r.pairByCode()
+	r.mustOK(map[string]any{"cmd": "launch", "package": "dev.droidline.demo"})
+
+	shot := r.mustOK(map[string]any{"cmd": "screenshot", "format": "png"})
+	raw, _ := base64.StdEncoding.DecodeString(shot["data"].(string))
+	img, err := png.Decode(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The "Keep me signed in" box is the only one 100 px tall.
+	crop := img.(interface {
+		SubImage(image.Rectangle) image.Image
+	}).SubImage(image.Rect(40, 840, 1040, 980))
+	var buf bytes.Buffer
+	png.Encode(&buf, crop)
+	part := base64.StdEncoding.EncodeToString(buf.Bytes())
+
+	found := r.mustOK(map[string]any{"cmd": "find_image", "image": part})
+	if found["x"] != float64(540) || found["y"] != float64(910) || found["score"].(float64) < 0.99 {
+		t.Fatalf("find_image = %v", found)
+	}
+	r.mustOK(map[string]any{"cmd": "tap_image", "image": part})
+
+	blank := image.NewRGBA(image.Rect(0, 0, 50, 50))
+	for i := range blank.Pix {
+		blank.Pix[i] = byte(i * 7)
+	}
+	buf.Reset()
+	png.Encode(&buf, blank)
+	miss := r.call(map[string]any{"cmd": "find_image", "image": base64.StdEncoding.EncodeToString(buf.Bytes()), "timeout": 0.2})
+	if miss["error"] != "NOT_FOUND" || !strings.Contains(miss["msg"].(string), "best score") {
+		t.Fatalf("missing image: %v", miss)
+	}
+
+	r.srv.Hub.SetOCRPath(t.TempDir() + "/no-tesseract.exe")
+	if res := r.call(map[string]any{"cmd": "ocr"}); res["error"] != "OCR_UNAVAILABLE" {
+		t.Fatalf("ocr without tesseract: %v", res)
+	}
+}
+
+func TestWebDriverBridge(t *testing.T) {
+	r := newRig(t)
+	r.pairByCode()
+	hs := httptest.NewServer(webdriver.New(mustDial(t, r.srv), "test", true).Handler())
+	t.Cleanup(hs.Close)
+
+	wd := func(method, path string, body any) (int, map[string]any) {
+		t.Helper()
+		var rd io.Reader
+		if body != nil {
+			b, _ := json.Marshal(body)
+			rd = bytes.NewReader(b)
+		}
+		req, _ := http.NewRequest(method, hs.URL+path, rd)
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json; charset=utf-8")
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var out map[string]any
+		json.NewDecoder(res.Body).Decode(&out)
+		return res.StatusCode, out
+	}
+	val := func(m map[string]any) map[string]any { v, _ := m["value"].(map[string]any); return v }
+
+	code, out := wd("POST", "/session", map[string]any{"capabilities": map[string]any{"alwaysMatch": map[string]any{
+		"platformName": "Android", "appium:deviceName": "any phone", "appium:appPackage": "dev.droidline.demo", "droidline:lease": true,
+	}}})
+	sid, _ := val(out)["sessionId"].(string)
+	gotCaps, _ := val(out)["capabilities"].(map[string]any)
+	if code != 200 || sid == "" || gotCaps["appium:automationName"] != "Droidline" {
+		t.Fatalf("new session %d %v", code, out)
+	}
+	s := "/session/" + sid
+	// The session holds a lease, so a script without it cannot use the phone.
+	if res := r.call(map[string]any{"cmd": "home"}); res["error"] != "DEVICE_LEASED" {
+		t.Fatalf("session lease not taken: %v", res)
+	}
+
+	find := func(using, value string) string {
+		t.Helper()
+		code, out := wd("POST", s+"/element", map[string]any{"using": using, "value": value})
+		id, _ := val(out)["element-6066-11e4-a52e-4f735466cecf"].(string)
+		if code != 200 || id == "" {
+			t.Fatalf("find %s %q: %d %v", using, value, code, out)
+		}
+		return id
+	}
+	if code, _ := wd("POST", s+"/element/"+find("xpath", "//*[@text='Close ad']")+"/click", map[string]any{}); code != 200 {
+		t.Fatalf("click %d", code)
+	}
+	email := find("-android uiautomator", `new UiSelector().resourceId("dev.droidline.demo:id/email")`)
+	wd("POST", s+"/element/"+email+"/value", map[string]any{"text": "knife", "value": []any{"k"}})
+	if _, out := wd("GET", s+"/element/"+email+"/text", nil); out["value"] != "knife" {
+		t.Fatalf("text %v", out)
+	}
+	if _, out := wd("GET", s+"/element/"+email+"/attribute/resource-id", nil); out["value"] != "dev.droidline.demo:id/email" {
+		t.Fatalf("attribute %v", out)
+	}
+	if _, out := wd("GET", s+"/element/"+email+"/rect", nil); val(out)["width"] != float64(960) {
+		t.Fatalf("rect %v", out)
+	}
+	wd("POST", s+"/element/"+find("id", "login")+"/click", map[string]any{})
+	if code, out := wd("POST", s+"/element", map[string]any{"using": "accessibility id", "value": "Balance"}); code != 200 {
+		t.Fatalf("accessibility id: %d %v", code, out)
+	}
+	if code, out := wd("POST", s+"/element", map[string]any{"using": "xpath", "value": "//*[@text='Nope']"}); code != 404 || val(out)["error"] != "no such element" {
+		t.Fatalf("missing element: %d %v", code, out)
+	}
+	if _, out := wd("POST", s+"/elements", map[string]any{"using": "class name", "value": "android.widget.CheckBox"}); len(out["value"].([]any)) != 3 {
+		t.Fatalf("elements %v", out)
+	}
+	_, out = wd("GET", s+"/source", nil)
+	if src, _ := out["value"].(string); !strings.Contains(src, "Welcome, knife") || !strings.HasPrefix(src, "<?xml") {
+		t.Fatalf("source %.200v", out["value"])
+	}
+	if code, _ := wd("POST", s+"/actions", map[string]any{"actions": []any{map[string]any{"type": "pointer", "id": "finger", "actions": []any{
+		map[string]any{"type": "pointerMove", "duration": 0, "x": 270, "y": 2300},
+		map[string]any{"type": "pointerDown", "button": 0},
+		map[string]any{"type": "pause", "duration": 80},
+		map[string]any{"type": "pointerUp", "button": 0},
+	}}}}); code != 200 {
+		t.Fatalf("actions %d", code)
+	}
+	if _, out := wd("POST", s+"/execute/sync", map[string]any{"script": "mobile: droidline", "args": []any{map[string]any{"cmd": "get_text", "by": "id", "value": "greeting"}}}); out["value"] != "Welcome, knife" {
+		t.Fatalf("mobile: droidline %v", out)
+	}
+	if _, out := wd("GET", s+"/screenshot", nil); len(fmt.Sprint(out["value"])) < 100 {
+		t.Fatalf("screenshot %v", out)
+	}
+	if code, _ := wd("DELETE", s, nil); code != 200 {
+		t.Fatalf("delete %d", code)
+	}
+	r.mustOK(map[string]any{"cmd": "home"})
+	if code, out := wd("GET", s+"/source", nil); code != 404 || val(out)["error"] != "invalid session id" {
+		t.Fatalf("deleted session: %d %v", code, out)
 	}
 }

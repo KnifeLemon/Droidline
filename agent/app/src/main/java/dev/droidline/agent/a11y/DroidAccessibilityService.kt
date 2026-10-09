@@ -30,6 +30,8 @@ class DroidAccessibilityService : AccessibilityService() {
     private val main = Handler(Looper.getMainLooper())
     private val activityCache = ConcurrentHashMap<String, Boolean>()
     private val lastActivity = ConcurrentHashMap<String, String>()
+    private val changedAt = ConcurrentHashMap<String, Long>()
+    @Volatile private var windowsChangedAt = 0L
     private var imePackages: Set<String> = emptySet()
     private var lastScreen: Pair<String, String>? = null
     private val screenCheck = Runnable { emitScreenIfChanged() }
@@ -43,13 +45,29 @@ class DroidAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if (Recorder.on) Recorder.onEvent(this, event)
         when (event.eventType) {
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> onWindowState(event)
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                noteChange(event)
+                onWindowState(event)
+            }
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, AccessibilityEvent.TYPE_VIEW_SCROLLED -> noteChange(event)
             AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED -> onNotificationState(event)
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> scheduleScreenCheck()
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                windowsChangedAt = System.currentTimeMillis()
+                scheduleScreenCheck()
+            }
             else -> Unit
         }
     }
+
+    private fun noteChange(event: AccessibilityEvent) {
+        val pkg = event.packageName?.toString() ?: return
+        changedAt[pkg] = System.currentTimeMillis()
+    }
+
+    /** When the app [pkg] last drew something new, or windows came or went; wait_idle counts from here. */
+    fun lastChangeAt(pkg: String): Long = maxOf(changedAt[pkg] ?: 0L, windowsChangedAt)
 
     override fun onInterrupt() = Unit
 
@@ -68,8 +86,10 @@ class DroidAccessibilityService : AccessibilityService() {
     private fun onWindowState(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString() ?: return
         val cls = event.className?.toString() ?: return
-        if (pkg in imePackages) return
-        if (isActivity(pkg, cls)) lastActivity[pkg] = shortActivity(pkg, cls)
+        val activity = isActivity(pkg, cls)
+        // Skip keyboard windows, but not activities of a keyboard's app (Droidline is one).
+        if (pkg in imePackages && !activity) return
+        if (activity) lastActivity[pkg] = shortActivity(pkg, cls)
         scheduleScreenCheck()
     }
 
@@ -101,10 +121,10 @@ class DroidAccessibilityService : AccessibilityService() {
 
     /** Foreground package from the top application window, and the last activity seen for it. */
     fun current(): Pair<String, String> {
-        val pkg = appWindows().firstNotNullOfOrNull { w -> w.root?.packageName?.toString() }
-            ?: rootInActiveWindow?.packageName?.toString()
-            ?: ""
-        return pkg to (lastActivity[pkg] ?: "")
+        val app = appWindows().firstNotNullOfOrNull { w -> w.root?.packageName?.toString() }
+        if (app != null) return app to (lastActivity[app] ?: "")
+        // A system window such as the open shade has no activity; an old one of the same package would mislead.
+        return (rootInActiveWindow?.packageName?.toString() ?: "") to ""
     }
 
     /**
@@ -149,6 +169,11 @@ class DroidAccessibilityService : AccessibilityService() {
         return roots.ifEmpty { listOfNotNull(rootInActiveWindow) }.map { build(it, 0, budget) }
     }
 
+    fun isKeyboardPackage(pkg: String): Boolean = pkg in imePackages
+
+    /** The tree under one platform node, for the recorder. */
+    fun snapshotOf(info: AccessibilityNodeInfo): UiNode = build(info, 0, intArrayOf(MAX_NODES))
+
     fun keyboardShown(): Boolean =
         runCatching { windows }.getOrDefault(emptyList()).any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
 
@@ -180,6 +205,7 @@ class DroidAccessibilityService : AccessibilityService() {
             scrollable = info.isScrollable,
             editable = info.isEditable,
             password = info.isPassword,
+            visible = info.isVisibleToUser,
             children = kids,
             handle = info,
         )

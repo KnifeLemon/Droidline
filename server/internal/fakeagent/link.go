@@ -447,7 +447,7 @@ func (a *Agent) exec(m map[string]any) {
 	a.mu.Unlock()
 	if cuts {
 		res["event"] = "result"
-		// Real phones lose the link while the macro runs; the result waits in the outbox.
+		// Real phones lose the link while the steps run; the result waits in the outbox.
 		a.GoOffline(1500 * time.Millisecond)
 		a.emit(res)
 		return
@@ -456,22 +456,8 @@ func (a *Agent) exec(m map[string]any) {
 }
 
 func cutsNetwork(name string, m map[string]any) bool {
-	on, _ := m["on"].(bool)
-	switch name {
-	case "airplane":
-		return on
-	case "data", "wifi":
-		return !on
-	case "batch":
-		steps, _ := m["steps"].([]any)
-		for _, s := range steps {
-			st, _ := s.(map[string]any)
-			if cutsNetwork(agentlink.Str(st, "cmd"), st) {
-				return true
-			}
-		}
-	}
-	return false
+	v, _ := m["cuts_network"].(bool)
+	return name == "batch" && v
 }
 
 // PostNotification simulates an app posting a notification on the phone.

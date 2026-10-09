@@ -2,11 +2,11 @@ package dev.droidline.agent.cmd
 
 import android.content.Context
 import dev.droidline.agent.Agent
+import dev.droidline.agent.a11y.Recorder
 import dev.droidline.agent.a11y.UiCommands
 import dev.droidline.agent.device.Capture
 import dev.droidline.agent.device.DeviceCommands
 import dev.droidline.agent.link.CommandCache
-import dev.droidline.agent.macro.Macros
 import dev.droidline.agent.notif.DroidNotificationListener
 import dev.droidline.agent.store.toStringList
 import dev.droidline.agent.vpn.ProxyController
@@ -156,6 +156,10 @@ class CommandRunner(private val ctx: Context, private val scope: CoroutineScope)
             "exists" -> UiCommands.exists(p)
             "wait" -> UiCommands.wait(p)
             "wait_gone" -> UiCommands.waitGone(p)
+            "wait_idle" -> UiCommands.waitIdle(p)
+            "find" -> UiCommands.find(p)
+            "find_all" -> UiCommands.findAll(p)
+            "record" -> Recorder.command(p)
             "get_text" -> UiCommands.getText(p)
             "checked" -> UiCommands.flag("checked", p) { it.checked }
             "enabled" -> UiCommands.flag("enabled", p) { it.enabled }
@@ -176,8 +180,8 @@ class CommandRunner(private val ctx: Context, private val scope: CoroutineScope)
             "network" -> DeviceCommands.network(ctx)
             "launch" -> DeviceCommands.launch(ctx, p)
             "open_url" -> DeviceCommands.openUrl(ctx, p)
-            "kill" -> Macros.kill(ctx, p)
-            "clear_data" -> Macros.clearData(ctx, p)
+            "intent" -> DeviceCommands.intent(ctx, p)
+            "clear_data" -> DeviceCommands.clearData(ctx, p)
             "apps" -> DeviceCommands.apps(ctx, p)
             "installed" -> DeviceCommands.installed(ctx, p)
             "back" -> UiCommands.globalCommand(name, "back")
@@ -185,7 +189,6 @@ class CommandRunner(private val ctx: Context, private val scope: CoroutineScope)
             "recents" -> UiCommands.globalCommand(name, "recents")
             "open_notifications" -> UiCommands.globalCommand(name, "notifications")
             "quick_settings" -> UiCommands.globalCommand(name, "quick_settings")
-            "data", "wifi", "airplane" -> Macros.toggle(ctx, name, p)
             "clipboard" -> DeviceCommands.clipboard(ctx, p)
             "batch" -> batch(p, inBatch)
             "chrome.go" -> DeviceCommands.chromeGo(ctx, p)

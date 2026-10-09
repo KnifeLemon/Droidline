@@ -1,0 +1,158 @@
+{
+ "date": "2026-10-09",
+ "screen": "Samsung Settings home, Korean UI, label 연결",
+ "runs_per_action": 10,
+ "tools": {
+  "appium": "3.8.0",
+  "uiautomator2_driver": "8.7.0",
+  "appium_python_client": "4.25.0"
+ },
+ "phones": {
+  "s23": {
+   "device": "Galaxy S23 Ultra (SM-S918N), Android 15, adb over Wi-Fi",
+   "droidline": {
+    "read screen tree": {
+     "median_ms": 53.2,
+     "min_ms": 43.8,
+     "max_ms": 92.6
+    },
+    "find by text": {
+     "median_ms": 15.9,
+     "min_ms": 13.8,
+     "max_ms": 24.0
+    },
+    "find and tap": {
+     "median_ms": 54.9,
+     "min_ms": 44.6,
+     "max_ms": 74.7
+    },
+    "screenshot": {
+     "median_ms": 353.4,
+     "min_ms": 264.5,
+     "max_ms": 405.8
+    }
+   },
+   "adb": {
+    "read screen tree": {
+     "median_ms": 2342.2,
+     "min_ms": 2271.0,
+     "max_ms": 3433.8
+    },
+    "find by text": {
+     "median_ms": 2367.5,
+     "min_ms": 2316.2,
+     "max_ms": 2704.6
+    },
+    "find and tap": {
+     "median_ms": 2867.9,
+     "min_ms": 2567.8,
+     "max_ms": 2938.6
+    },
+    "screenshot": {
+     "median_ms": 549.2,
+     "min_ms": 465.7,
+     "max_ms": 833.2
+    }
+   },
+   "appium": {
+    "session start": {
+     "first_ms": 5857,
+     "second_ms": 4253
+    },
+    "read screen tree": {
+     "median_ms": 98.7,
+     "min_ms": 77.8,
+     "max_ms": 693.8
+    },
+    "find by text": {
+     "median_ms": 99.5,
+     "min_ms": 87.7,
+     "max_ms": 271.3
+    },
+    "find and tap": {
+     "median_ms": 514.1,
+     "min_ms": 206.6,
+     "max_ms": 1460.3
+    },
+    "screenshot": {
+     "median_ms": 415.7,
+     "min_ms": 372.2,
+     "max_ms": 841.8
+    }
+   }
+  },
+  "note10": {
+   "device": "Galaxy Note10 (SM-N976N), Android 12, adb over USB",
+   "droidline": {
+    "read screen tree": {
+     "median_ms": 61.1,
+     "min_ms": 50.8,
+     "max_ms": 98.6
+    },
+    "find by text": {
+     "median_ms": 24.9,
+     "min_ms": 20.8,
+     "max_ms": 32.7
+    },
+    "find and tap": {
+     "median_ms": 50.5,
+     "min_ms": 36.4,
+     "max_ms": 56.1
+    },
+    "screenshot": {
+     "median_ms": 350.6,
+     "min_ms": 244.6,
+     "max_ms": 384.2
+    }
+   },
+   "adb": {
+    "read screen tree": {
+     "median_ms": 2551.4,
+     "min_ms": 2514.0,
+     "max_ms": 2638.9
+    },
+    "find by text": {
+     "median_ms": 2557.3,
+     "min_ms": 2498.4,
+     "max_ms": 2595.5
+    },
+    "find and tap": {
+     "median_ms": 2708.9,
+     "min_ms": 2624.2,
+     "max_ms": 2798.1
+    },
+    "screenshot": {
+     "median_ms": 455.5,
+     "min_ms": 416.4,
+     "max_ms": 617.6
+    }
+   },
+   "appium": {
+    "session start": {
+     "first_ms": 4756,
+     "second_ms": 4490
+    },
+    "read screen tree": {
+     "median_ms": 142.3,
+     "min_ms": 113.3,
+     "max_ms": 196.1
+    },
+    "find by text": {
+     "median_ms": 149.9,
+     "min_ms": 109.8,
+     "max_ms": 415.7
+    },
+    "find and tap": {
+     "median_ms": 207.9,
+     "min_ms": 168.6,
+     "max_ms": 988.4
+    },
+    "screenshot": {
+     "median_ms": 378.8,
+     "min_ms": 352.7,
+     "max_ms": 425.3
+    }
+   }
+  }
+ }
+}

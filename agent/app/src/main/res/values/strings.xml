@@ -104,4 +104,8 @@
     <string name="pair_link_title">Pair with %1$s?</string>
     <string name="pair_link_warning">Continue only if you just ran droidline pair on your own PC. Whoever controls that PC can control this phone.</string>
     <string name="btn_pair_confirm">Pair</string>
+    <string name="owner_title">Device owner mode</string>
+    <string name="owner_body">On. clear_data wipes apps directly, and the app cannot be uninstalled until you turn this off.</string>
+    <string name="btn_owner_release">Turn off</string>
+    <string name="owner_release_confirm">Turn off device owner mode? clear_data stops working, and the app can be uninstalled again. Setting it again needs a computer.</string>
 </resources>

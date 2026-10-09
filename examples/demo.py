@@ -24,6 +24,6 @@ except NotFoundError as e:
     print("expected error:", e)
 
 d.screenshot("screen.png", scale=0.5)
-result = d.batch([("airplane", True), ("sleep", 500), ("airplane", False)], wait=True)
+result = d.batch([("home",), ("sleep", 500), ("back",)], cuts_network=True, wait=True)
 assert all(step["ok"] for step in result["results"])
 print("python demo ok")

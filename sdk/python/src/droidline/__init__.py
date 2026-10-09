@@ -9,16 +9,20 @@ Docs: https://droidline.dev/docs
 """
 
 from . import _generated
-from ._client import Device, Droidline, connect
+from ._client import Device, Droidline, LeasedDevice, connect, lease
+from ._element import Element
 from ._errors import ConnectionLostError, DroidlineError, ServerNotRunningError
 from ._generated import *  # noqa: F401,F403
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "connect",
+    "lease",
     "Droidline",
     "Device",
+    "LeasedDevice",
+    "Element",
     "DroidlineError",
     "ServerNotRunningError",
     "ConnectionLostError",

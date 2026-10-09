@@ -119,6 +119,14 @@ func (c *Client) prepare(req map[string]any) prepared {
 		return now(h.errResult("BAD_ARGS", map[string]any{"cmd": name, "reason": reason}))
 	}
 	devRef, _ := req["device"].(string)
+	leaseID, _ := req["lease"].(string)
+	if cmd.Scope == "device" && devRef == "" && leaseID != "" {
+		dev, ok := h.leaseDevice(leaseID)
+		if !ok {
+			return now(h.errResult("LEASE_NOT_FOUND", map[string]any{"lease": leaseID}))
+		}
+		devRef = dev
+	}
 
 	switch cmd.Scope {
 	case "server":
@@ -131,8 +139,19 @@ func (c *Client) prepare(req map[string]any) prepared {
 	if errR != nil {
 		return now(errR)
 	}
+	done, errR := h.admit(d, leaseID)
+	if errR != nil {
+		return now(errR)
+	}
+	if cmd.RunsOn == "server" {
+		return prepared{later: func() Result {
+			defer done()
+			return h.visionCmd(d, cmd, params)
+		}}
+	}
 	if cmd.Name == "proxy" {
 		if r := h.resolveProxyProfile(params); r != nil {
+			done()
 			return now(r)
 		}
 	}
@@ -150,7 +169,14 @@ func (c *Client) prepare(req map[string]any) prepared {
 		}
 		c.send(ev)
 	}
-	return prepared{device: d.Submit(call)}
+	res := d.Submit(call)
+	out := make(chan Result, 1)
+	go func() {
+		r := <-res
+		done()
+		out <- r
+	}()
+	return prepared{device: out}
 }
 
 func didYouMean(lang string, names []string) string {
@@ -261,6 +287,24 @@ func (c *Client) serverCmd(cmd *spec.Command, p map[string]any, devRef string) R
 		}
 		c.subDevice = dev
 		c.mu.Unlock()
+		return Result{"ok": true}
+	case "lease":
+		return h.leaseCmd(p)
+	case "release":
+		id, _ := p["lease"].(string)
+		ref, _ := p["device"].(string)
+		switch {
+		case id != "":
+			h.releaseLease(id)
+		case ref != "":
+			d := h.deviceByRef(ref)
+			if d == nil {
+				return h.errResult("DEVICE_NOT_FOUND", map[string]any{"device": ref})
+			}
+			h.releaseDevice(d.ID)
+		default:
+			return h.errResult("BAD_ARGS", map[string]any{"cmd": "release", "reason": "pass lease, or device to free a phone"})
+		}
 		return Result{"ok": true}
 	case "wait_notification":
 		d, errR := h.pickDevice(devRef)

@@ -1,9 +1,12 @@
 package spec
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,7 +29,7 @@ func (e *ArgError) Error() string {
 
 // Envelope keys that belong to the request, not to the command.
 var envelopeKeys = map[string]bool{
-	"id": true, "cmd": true, "device": true, "wait": true, "offline_wait": true, "args": true,
+	"id": true, "cmd": true, "device": true, "wait": true, "offline_wait": true, "args": true, "lease": true,
 }
 
 // Normalize checks raw request fields against the command definition and returns
@@ -121,6 +124,16 @@ func (s *Spec) normalizeFor(c *Command, aliasBy string, raw map[string]any) (map
 		}
 	}
 
+	if c.Param("by") != nil && c.Param("value") != nil {
+		_, isQuery := out["by"].(map[string]any)
+		_, hasValue := out["value"]
+		switch {
+		case isQuery && hasValue:
+			return nil, bad("value is not used when by is a query object")
+		case !isQuery && !hasValue:
+			return nil, bad("missing required parameter %q", "value")
+		}
+	}
 	if err := s.special(c, out); err != nil {
 		return nil, err
 	}
@@ -179,9 +192,17 @@ func (s *Spec) coerce(c *Command, p *Param, v any) (any, error) {
 		}
 		out = b
 	case "selector":
+		if m, ok := v.(map[string]any); ok {
+			q, err := CheckQuery(m)
+			if err != nil {
+				return nil, bad("%v", err)
+			}
+			out = q
+			break
+		}
 		sv, ok := v.(string)
 		if !ok || !s.IsSelector(sv) {
-			return nil, bad("expected one of %s", strings.Join(s.SelectorNames(), ", "))
+			return nil, bad("expected one of %s, or a query object", strings.Join(s.SelectorNames(), ", "))
 		}
 		out = sv
 	case "int|string":
@@ -212,6 +233,12 @@ func (s *Spec) coerce(c *Command, p *Param, v any) (any, error) {
 			return nil, bad("%v", err)
 		}
 		out = pairs
+	case "image":
+		sv, ok := v.(string)
+		if !ok || sv == "" {
+			return nil, bad("expected a PNG or JPEG as base64")
+		}
+		out = sv
 	case "list<step>":
 		steps, err := s.batchSteps(v)
 		if err != nil {
@@ -324,9 +351,17 @@ func (s *Spec) selectorPairs(v any) ([]any, error) {
 			}
 			by, val = t[0], t[1]
 		case map[string]any:
+			if _, ok := t["by"]; !ok {
+				q, err := CheckQuery(t)
+				if err != nil {
+					return nil, fmt.Errorf("candidate %d: %v", i, err)
+				}
+				out = append(out, q)
+				continue
+			}
 			by, val = t["by"], t["value"]
 		default:
-			return nil, fmt.Errorf("candidate %d must be [by, value]", i)
+			return nil, fmt.Errorf("candidate %d must be [by, value] or a query object", i)
 		}
 		bs, _ := by.(string)
 		vs, ok := val.(string)
@@ -393,6 +428,9 @@ func (s *Spec) batchSteps(v any) ([]any, error) {
 // CutsNetwork reports whether this normalised call will drop the phone's link.
 func (s *Spec) CutsNetwork(c *Command, params map[string]any) bool {
 	if c.Name == "batch" {
+		if v, _ := params["cuts_network"].(bool); v {
+			return true
+		}
 		steps, _ := params["steps"].([]any)
 		for _, st := range steps {
 			m, _ := st.(map[string]any)
@@ -442,6 +480,10 @@ func asInt(v any) (int64, bool) {
 	case float64:
 		if n == math.Trunc(n) && !math.IsInf(n, 0) {
 			return int64(n), true
+		}
+	case json.Number:
+		if i, err := n.Int64(); err == nil {
+			return i, true
 		}
 	}
 	return 0, false
@@ -512,6 +554,21 @@ func (s *Spec) ParseArg(p *Param, raw string) (any, error) {
 			}
 		}
 		return out, nil
+	case "image":
+		data, err := os.ReadFile(raw)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %v", p.Name, err)
+		}
+		return base64.StdEncoding.EncodeToString(data), nil
+	case "selector":
+		if strings.HasPrefix(strings.TrimSpace(raw), "{") {
+			var q map[string]any
+			if err := json.Unmarshal([]byte(raw), &q); err != nil {
+				return nil, fmt.Errorf(`%s: expected a query object such as {"text":"OK"}; in Windows PowerShell 5.1 the inner quotes get lost, so use PowerShell 7 or another shell (%v)`, p.Name, err)
+			}
+			return q, nil
+		}
+		return raw, nil
 	case "list<selector_pair>", "list<step>", "object", "list<object>":
 		return parseJSONArg(raw)
 	}

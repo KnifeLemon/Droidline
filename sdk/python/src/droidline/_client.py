@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import base64
+import collections
 import itertools
 import json
 import os
 import queue
 import socket
 import threading
+import time
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
+from ._element import Element
 from ._errors import ConnectionLostError, DroidlineError, ServerNotRunningError
 from ._generated import ERRORS, ClientCommands, DeviceCommands, Notification
 
@@ -35,10 +38,14 @@ def _fields(resp: Dict[str, Any]) -> Dict[str, Any]:
     return {k: v for k, v in resp.items() if k not in ("id", "ok")}
 
 
-def _message(cmd: str, device: Optional[str], required: Dict[str, Any], optional: Dict[str, Any]) -> Dict[str, Any]:
+def _message(
+    cmd: str, device: Optional[str], required: Dict[str, Any], optional: Dict[str, Any], lease: Optional[str] = None
+) -> Dict[str, Any]:
     msg: Dict[str, Any] = {"cmd": cmd}
     if device is not None:
         msg["device"] = device
+    if lease is not None:
+        msg["lease"] = lease
     msg.update(required)
     msg.update((k, v) for k, v in optional.items() if v is not None)
     return msg
@@ -89,9 +96,16 @@ class _Connection:
         self._subscriptions: List[Dict[str, Any]] = []
         self._listeners: Dict[str, List[EventCallback]] = {}
         self._queue: Optional["queue.Queue[Optional[Dict[str, Any]]]"] = None
+        self.history: "collections.deque[Dict[str, Any]]" = collections.deque(maxlen=200)
 
     def request(self, msg: Dict[str, Any]) -> Dict[str, Any]:
-        resp = self._exchange(self.ensure(), msg)
+        start = time.monotonic()
+        try:
+            resp = self._exchange(self.ensure(), msg)
+        except DroidlineError as e:
+            self._note(msg, start, e.code)
+            raise
+        self._note(msg, start, None)
         if msg.get("cmd") == "subscribe":
             with self._lock:
                 if msg not in self._subscriptions:
@@ -99,6 +113,21 @@ class _Connection:
         elif msg.get("cmd") == "auth":
             self.token = msg.get("token")
         return resp
+
+    def _note(self, msg: Dict[str, Any], start: float, error: Optional[str]) -> None:
+        if msg.get("cmd") == "auth":
+            return
+        params = {}
+        for k, v in msg.items():
+            if k in ("id", "cmd", "device", "lease", "token"):
+                continue
+            if isinstance(v, str) and len(v) > 200:
+                v = f"<{len(v)} characters>"
+            params[k] = v
+        self.history.append({
+            "time": time.time(), "device": msg.get("device"), "cmd": msg.get("cmd"), "params": params,
+            "ok": error is None, "error": error, "ms": int((time.monotonic() - start) * 1000),
+        })
 
     def subscribe_once(self, msg: Dict[str, Any]) -> None:
         with self._lock:
@@ -286,6 +315,38 @@ class Droidline(ClientCommands):
         """Send any command, including ones newer than this SDK. Returns the reply without id and ok."""
         return _fields(self._conn.request({"cmd": cmd, **params}))
 
+    def lease(
+        self,
+        device: Optional[str] = None,
+        *,
+        wait: Optional[float] = None,
+        ttl: Optional[float] = None,
+        min_sdk: Optional[int] = None,
+        model: Optional[str] = None,
+    ) -> LeasedDevice:
+        """Borrow a free phone so no other script can use it until release().
+
+        Optional: phones nobody leased keep working as before. Waits up to `wait` seconds
+        (default 30) for a match, else raises NoFreeDeviceError. The lease also ends after
+        `ttl` seconds (default 300) without a command. Use it as a context manager to release
+        it at the end of the block.
+        """
+        optional = {"device": device, "wait": wait, "ttl": ttl, "min_sdk": min_sdk, "model": model}
+        reply = _fields(self._conn.request(_message("lease", None, {}, optional)))
+        return LeasedDevice(self, reply["device"], reply["lease"], reply)
+
+    def release(self, lease: Optional[str] = None, *, device: Optional[str] = None) -> None:
+        """Give a leased phone back. Releasing twice is harmless.
+
+        Pass device instead of lease to free a phone whose script crashed while holding it.
+        """
+        self._conn.request(_message("release", None, {}, {"lease": lease, "device": device}))
+
+    @property
+    def history(self) -> List[Dict[str, Any]]:
+        """The last 200 requests on this connection, oldest first: cmd, params, ok, error, ms."""
+        return list(self._conn.history)
+
     def on(self, kind: str, callback: EventCallback) -> EventCallback:
         """Call `callback(event)` for each event of this kind (device, notification, screen, toast,
         result) or every event with "*". Only result events arrive without subscribe()."""
@@ -314,6 +375,8 @@ class Droidline(ClientCommands):
 class Device(DeviceCommands):
     """One phone. Every generated command method sends a request with this device's ID or name."""
 
+    lease_id: Optional[str] = None
+
     def __init__(self, client: Droidline, device: Optional[str] = None) -> None:
         self.client = client
         self.device = device
@@ -321,7 +384,12 @@ class Device(DeviceCommands):
 
     def call(self, cmd: str, /, **params: Any) -> Dict[str, Any]:
         """Send any command to this phone, including ones newer than this SDK."""
-        return _fields(self.client._conn.request(_message(cmd, self.device, params, {})))
+        return _fields(self.client._conn.request(_message(cmd, self.device, params, {}, self.lease_id)))
+
+    @property
+    def history(self) -> List[Dict[str, Any]]:
+        """Recent requests to this phone, oldest first: cmd, params, ok, error, ms."""
+        return [e for e in self.client.history if self.device is None or e["device"] == self.device]
 
     def on_notification(
         self,
@@ -391,7 +459,20 @@ class Device(DeviceCommands):
         return f"Device({self.device!r})"
 
     def _run(self, cmd: str, kind: str, required: Dict[str, Any], /, **optional: Any) -> Any:
-        return _result(kind, self.client._conn.request(_message(cmd, self.device, required, optional)))
+        return _result(kind, self.client._conn.request(_message(cmd, self.device, required, optional, self.lease_id)))
+
+    def _load_image(self, image: Union[str, bytes]) -> str:
+        # A file path or the bytes of a PNG or JPEG; the wire carries base64.
+        if isinstance(image, (bytes, bytearray)):
+            return base64.b64encode(bytes(image)).decode("ascii")
+        with open(image, "rb") as f:
+            return base64.b64encode(f.read()).decode("ascii")
+
+    def _run_element(self, cmd: str, kind: str, required: Dict[str, Any], /, **optional: Any) -> Any:
+        found = self._run(cmd, kind, required, **optional)
+        if isinstance(found, list):
+            return [Element(self, n) for n in found]
+        return Element(self, found)
 
     def _save_image(self, cmd: str, path: Optional[str], required: Dict[str, Any], /, **optional: Any) -> Any:
         if path is not None and optional.get("format") is None:
@@ -411,6 +492,61 @@ class Device(DeviceCommands):
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
         return result
+
+
+class LeasedDevice(Device):
+    """A phone borrowed with lease(). Every request carries the lease; release() gives it back."""
+
+    def __init__(self, client: Droidline, device: str, lease_id: str, info: Dict[str, Any]) -> None:
+        super().__init__(client, device)
+        self.lease_id = lease_id
+        self.name: str = info.get("name") or device
+        self.ttl: float = float(info.get("ttl") or 0)
+
+    def release(self) -> None:
+        """Give the phone back."""
+        lease_id, self.lease_id = self.lease_id, None
+        if lease_id is not None:
+            self.client.release(lease_id)
+
+    def close(self) -> None:
+        """Release the phone, then close the connection if lease() opened it."""
+        try:
+            self.release()
+        finally:
+            super().close()
+
+    def __enter__(self) -> LeasedDevice:
+        return self
+
+    def __repr__(self) -> str:
+        return f"LeasedDevice({self.name!r}, lease={self.lease_id!r})"
+
+
+def lease(
+    device: Optional[str] = None,
+    *,
+    wait: Optional[float] = None,
+    ttl: Optional[float] = None,
+    min_sdk: Optional[int] = None,
+    model: Optional[str] = None,
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    token: Optional[str] = None,
+) -> LeasedDevice:
+    """Like connect(), but borrows a free phone so no other script can use it.
+
+        with lease() as d:
+            d.launch("com.android.settings")
+    """
+    client = Droidline(host, port, token)
+    try:
+        d = client.lease(device, wait=wait, ttl=ttl, min_sdk=min_sdk, model=model)
+    except BaseException:
+        client.close()
+        raise
+    d._owns_client = True
+    return d
 
 
 def connect(

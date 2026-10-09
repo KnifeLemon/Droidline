@@ -131,8 +131,10 @@ curl -s -X POST localhost:8780/devices/_/touch \
 - **一整架手机。** 一台电脑控制多部手机。发给同一部手机的命令按顺序执行，不同手机之间并行执行，每部手机都可以起你想要的名字。
 - **按应用代理。** 通过本地 VPN 让指定应用走 socks5 或 http 上游，每部手机一个上游，无需 root。
 - **在电脑上接收通知。** 等待一条、响应每一条、回复、打开或清除，或者转发到带签名的 Webhook。
-- **新的移动 IP。** `batch` 在手机离线时也会继续在手机上运行，所以开启飞行模式、等待、关闭可以作为一条命令完成。
+- **新的移动 IP。** 带 `cuts_network` 的 `batch` 在手机离线时也会继续在手机上运行，所以开启飞行模式、等待、关闭可以在一次调用中完成。设置页面先用 `intent` 打开，具体步骤见[常用示例](https://droidline.dev/zh/docs/recipes/#设置应用强行停止清除数据切换网络)。
 - **不会执行两次。** 移动数据断开后重连的手机会从中断处继续；执行中的命令由手机缓存的回复作答，不会再执行一次。
+- **经得住变化的选择器。** 可以组合条件，或借助旁边的元素指定：`touch({"class": "android.widget.Switch", "row": {"text": "WLAN"}})`。`find` 返回可以点击、可以在其中继续查找的元素，`wait_idle` 会等到界面不再变化。
+- **启动之前都不运行的可选工具。** `droidline inspect` 显示界面和元素，给出带代码的选择器建议，并在你使用手机时录制脚本。`droidline webdriver` 让 Appium 客户端和脚本控制你的手机。另外还有 pytest 插件、在脚本之间共享手机的 lease，以及面向没有元素的界面的图片和文字查找。
 - **简体中文、English、한국어**：应用、错误消息和文档都支持。
 
 ## 截图
@@ -171,7 +173,7 @@ Droidline 只使用普通应用能获得的权限，因此有些事做不到，�
 
 - 无法打开其他应用未导出的界面。`launch` 会改为打开启动界面。
 - 无法解锁 PIN、图案或密码锁屏。
-- 强行停止、清除数据和网络开关是通过在系统设置中代你点击按钮完成的，需要几秒钟，按钮文字也因品牌而异。
+- 没有一条命令就能强行停止应用、清除数据或切换网络。设置应用因手机厂商、Android 版本和语言而异，所以由[常用示例](https://droidline.dev/zh/docs/recipes/#设置应用强行停止清除数据切换网络)点击其中的按钮，你可能需要按自己的手机调整按钮文字。在可选的设备所有者模式下，`clear_data` 会直接清除应用数据。
 - 游戏和部分自绘界面的应用不提供元素。这类界面请用 `tap` 坐标和 `color(x, y)`。
 - Android 15 及以上会对应用隐藏通知中的验证码。你能知道验证码已到达，号码需要在应用界面中读取。
 
@@ -185,6 +187,9 @@ Droidline 只使用普通应用能获得的权限，因此有些事做不到，�
 | 不用手机写出第一个脚本 | [你的第一个脚本](https://droidline.dev/zh/docs/tutorial/) |
 | 用我的语言 | [Python](https://droidline.dev/zh/docs/python/) · [Node.js](https://droidline.dev/zh/docs/nodejs/) · [CLI](https://droidline.dev/zh/docs/cli/) · [HTTP](https://droidline.dev/zh/docs/http/) · [AI 智能体](https://droidline.dev/zh/docs/ai-agents/) |
 | 在界面上找到合适的元素 | [查找元素](https://droidline.dev/zh/docs/finding-elements/) |
+| 点选元素，或录制脚本 | [界面检查与录制](https://droidline.dev/zh/docs/inspector/) |
+| 运行 Appium 脚本 | [Appium 与 WebDriver](https://droidline.dev/zh/docs/appium/) |
+| 用 pytest 或 Node.js 测试 | [测试框架](https://droidline.dev/zh/docs/testing/) |
 | 直接套用可用的做法 | [常用示例](https://droidline.dev/zh/docs/recipes/) |
 | 查一条命令 | [命令参考](https://droidline.dev/zh/docs/commands/) |
 | 连接使用移动数据的手机 | [远程连接](https://droidline.dev/zh/docs/remote/) |
@@ -219,7 +224,7 @@ cd agent && ./gradlew assembleDebug testDebugUnitTest
 
 ## 参与贡献
 
-欢迎提交 Pull Request。规范、生成器和测试如何配合，见 [CONTRIBUTING.md](CONTRIBUTING.md)。目前最有帮助的贡献是真机报告：品牌和 Android 版本，以及 `kill`、`clear_data` 和网络开关是否可用。如果 Droidline 帮你省下了一些点击，点一个 ⭐ 能让更多人找到它。
+欢迎提交 Pull Request。规范、生成器和测试如何配合，见 [CONTRIBUTING.md](CONTRIBUTING.md)。目前最有帮助的贡献是真机报告：品牌和 Android 版本，以及用于强行停止、清除数据和网络开关的[设置应用示例](https://droidline.dev/zh/docs/recipes/#设置应用强行停止清除数据切换网络)能否配合该手机的按钮文字使用。如果 Droidline 帮你省下了一些点击，点一个 ⭐ 能让更多人找到它。
 
 ## 状态
 

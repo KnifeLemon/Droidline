@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/KnifeLemon/Droidline/spec"
 )
 
 const (
@@ -111,35 +113,36 @@ func (u *phoneUI) addNotification(n map[string]any) {
 	u.mu.Unlock()
 }
 
-func matches(n *node, by, value string) bool {
-	switch by {
-	case "text":
-		return n.Text == value
-	case "textContains":
-		return value != "" && strings.Contains(n.Text, value)
-	case "id":
-		return n.ID == value || (!strings.Contains(value, ":") && strings.HasSuffix(n.ID, ":id/"+value))
-	case "desc":
-		return n.Desc == value
-	case "descContains":
-		return value != "" && strings.Contains(n.Desc, value)
-	case "class":
-		return n.Class == value
+// pick returns the nodes a selector matches, by the same rules as the phone (spec/query.go).
+func (u *phoneUI) pick(by any, value string) []*node {
+	ns := u.nodes()
+	root := &spec.Node{Fields: map[string]any{"class": "android.widget.FrameLayout", "bounds": [4]int{0, 0, screenW, screenH}, "enabled": true}}
+	for i, n := range ns {
+		f := u.fields(n)
+		f["_i"] = i
+		root.Children = append(root.Children, &spec.Node{Fields: f, Parent: root})
 	}
-	return false
-}
-
-func (u *phoneUI) find(by, value string, nth int) *node {
-	i := 0
-	for _, n := range u.nodes() {
-		if matches(n, by, value) {
-			if i == nth {
-				return n
-			}
-			i++
+	var out []*node
+	for _, sn := range spec.FindAll([]*spec.Node{root}, by, value) {
+		if i, ok := sn.Fields["_i"].(int); ok {
+			out = append(out, ns[i])
 		}
 	}
+	return out
+}
+
+func (u *phoneUI) find(by any, value string, nth int) *node {
+	if found := u.pick(by, value); nth < len(found) {
+		return found[nth]
+	}
 	return nil
+}
+
+func target(m map[string]any) string {
+	if q, ok := m["by"].(map[string]any); ok {
+		return spec.DescribeQuery(q)
+	}
+	return fmt.Sprintf("%s '%s'", str(m, "by"), str(m, "value"))
 }
 
 func (u *phoneUI) screen() string { return u.pkg + "/" + u.act }
@@ -174,9 +177,8 @@ func fail(code, msg string, fields ...any) map[string]any {
 }
 
 func (u *phoneUI) notFound(m map[string]any) map[string]any {
-	by, val := str(m, "by"), str(m, "value")
-	return fail("NOT_FOUND", fmt.Sprintf("could not find %s '%s'", by, val),
-		"target", fmt.Sprintf("%s '%s'", by, val), "timeout", num(m, "timeout", 10), "screen", u.screen())
+	return fail("NOT_FOUND", "could not find "+target(m),
+		"target", target(m), "timeout", num(m, "timeout", 10), "screen", u.screen())
 }
 
 // waitFor polls like the real agent; the fake UI only changes on actions, so a
@@ -185,7 +187,7 @@ func (u *phoneUI) waitFor(m map[string]any) *node {
 	deadline := time.Now().Add(time.Duration(min(num(m, "timeout", 10), 0.3) * float64(time.Second)))
 	for {
 		u.mu.Lock()
-		n := u.find(str(m, "by"), str(m, "value"), int(num(m, "nth", 0)))
+		n := u.find(m["by"], str(m, "value"), int(num(m, "nth", 0)))
 		u.mu.Unlock()
 		if n != nil || time.Now().After(deadline) {
 			return n
@@ -226,7 +228,7 @@ func (u *phoneUI) run(a *Agent, name string, m map[string]any) map[string]any {
 			return u.notFound(m)
 		}
 		if !n.Editable {
-			return fail("NOT_CLICKABLE", "element is not editable", "target", str(m, "by")+" '"+str(m, "value")+"'")
+			return fail("NOT_CLICKABLE", "element is not editable", "target", target(m))
 		}
 		if n.ID == id("email") {
 			if name == "clear" {
@@ -246,10 +248,28 @@ func (u *phoneUI) run(a *Agent, name string, m map[string]any) map[string]any {
 			return u.notFound(m)
 		}
 		return ok("ms", ms())
+	case "wait_idle":
+		return ok("ms", ms())
+	case "find":
+		n := u.waitFor(m)
+		u.mu.Lock()
+		defer u.mu.Unlock()
+		if n == nil {
+			return u.notFound(m)
+		}
+		return ok("value", u.fields(n))
+	case "find_all":
+		u.mu.Lock()
+		defer u.mu.Unlock()
+		list := []any{}
+		for _, n := range u.pick(m["by"], str(m, "value")) {
+			list = append(list, u.fields(n))
+		}
+		return ok("value", list)
 	case "wait_gone":
 		u.mu.Lock()
 		defer u.mu.Unlock()
-		if u.find(str(m, "by"), str(m, "value"), 0) != nil {
+		if u.find(m["by"], str(m, "value"), 0) != nil {
 			return fail("TIMEOUT", "still on screen", "cmd", name, "timeout", num(m, "timeout", 10))
 		}
 		return ok("ms", ms())
@@ -280,7 +300,7 @@ func (u *phoneUI) run(a *Agent, name string, m map[string]any) map[string]any {
 	case "swipe":
 		return ok("ms", int(num(m, "ms", 300)))
 	case "scroll_to":
-		if u.find(str(m, "by"), str(m, "value"), int(num(m, "nth", 0))) == nil {
+		if u.find(m["by"], str(m, "value"), int(num(m, "nth", 0))) == nil {
 			return u.notFound(m)
 		}
 		return ok("swipes", 0)
@@ -298,29 +318,25 @@ func (u *phoneUI) run(a *Agent, name string, m map[string]any) map[string]any {
 		}
 		return ok("via", "ime")
 	case "exists":
-		return ok("value", u.find(str(m, "by"), str(m, "value"), int(num(m, "nth", 0))) != nil)
+		return ok("value", u.find(m["by"], str(m, "value"), int(num(m, "nth", 0))) != nil)
 	case "get_text":
-		if n := u.find(str(m, "by"), str(m, "value"), int(num(m, "nth", 0))); n != nil {
+		if n := u.find(m["by"], str(m, "value"), int(num(m, "nth", 0))); n != nil {
 			return ok("value", n.Text)
 		}
 		return ok("value", "")
 	case "checked", "enabled", "selected":
-		n := u.find(str(m, "by"), str(m, "value"), int(num(m, "nth", 0)))
+		n := u.find(m["by"], str(m, "value"), int(num(m, "nth", 0)))
 		v := n != nil && map[string]bool{"checked": n.Checked, "enabled": !n.Disabled, "selected": n.Selected}[name]
 		return ok("value", v)
 	case "count":
-		c := 0
-		for _, n := range u.nodes() {
-			if matches(n, str(m, "by"), str(m, "value")) {
-				c++
-			}
-		}
-		return ok("value", c)
+		return ok("value", len(u.pick(m["by"], str(m, "value"))))
 	case "which":
 		cands, _ := m["candidates"].([]any)
 		for i, c := range cands {
-			pair, _ := c.([]any)
-			if len(pair) == 2 && u.find(fmt.Sprint(pair[0]), fmt.Sprint(pair[1]), 0) != nil {
+			if q, isQuery := c.(map[string]any); isQuery && u.find(q, "", 0) != nil {
+				return ok("value", i)
+			}
+			if pair, _ := c.([]any); len(pair) == 2 && u.find(fmt.Sprint(pair[0]), fmt.Sprint(pair[1]), 0) != nil {
 				return ok("value", i)
 			}
 		}
@@ -376,17 +392,15 @@ func (u *phoneUI) run(a *Agent, name string, m map[string]any) map[string]any {
 	case "open_url", "chrome.go":
 		u.open("com.android.chrome", "org.chromium.chrome.browser.ChromeTabbedActivity")
 		return ok("ms", ms())
-	case "kill", "clear_data":
-		if str(m, "package") != demoPkg && str(m, "package") != "com.android.chrome" {
-			return fail("APP_NOT_FOUND", "not installed", "package", str(m, "package"), "similar", []string{demoPkg})
+	case "intent":
+		if p := str(m, "package"); p != "" && p != demoPkg && p != "com.android.chrome" && p != "com.android.settings" {
+			return fail("APP_NOT_FOUND", "not installed", "package", p, "similar", []string{demoPkg})
 		}
-		if u.pkg == str(m, "package") {
-			u.open(homePkg, ".Launcher")
-		}
-		if name == "clear_data" && str(m, "package") == demoPkg {
-			u.email, u.autoLogin = "", false
-		}
-		return ok("via", "settings_macro", "ms", 1200)
+		u.open("com.android.settings", ".SubSettings")
+		return ok()
+	case "clear_data":
+		// The simulator is never a device owner.
+		return fail("NO_PERMISSION", "device owner mode is off", "permission", "device_owner")
 	case "apps":
 		return ok("value", []map[string]any{
 			{"package": demoPkg, "label": "Demo", "version": "1.0", "system": false},
@@ -408,11 +422,6 @@ func (u *phoneUI) run(a *Agent, name string, m map[string]any) map[string]any {
 		return ok()
 	case "recents", "open_notifications", "quick_settings":
 		return ok()
-	case "data", "wifi":
-		return ok("via", "settings_macro", "ms", 900)
-	case "airplane":
-		u.airplane, _ = m["on"].(bool)
-		return ok("via", "settings_macro", "ms", 900)
 	case "clipboard":
 		if t, has := m["text"].(string); has {
 			u.clip = t
@@ -542,16 +551,21 @@ func stripCreds(u string) string {
 	return u
 }
 
+func (u *phoneUI) fields(n *node) map[string]any {
+	return map[string]any{
+		"text": n.Text, "id": n.ID, "desc": n.Desc, "class": n.Class, "package": u.pkg,
+		"bounds": n.Bounds, "clickable": n.Clickable, "long_clickable": false, "visible": true, "checkable": n.Checkable,
+		"checked": n.Checked, "enabled": !n.Disabled, "focused": n.ID != "" && n.ID == u.focused,
+		"selected": n.Selected, "scrollable": false, "editable": n.Editable, "password": n.Password,
+	}
+}
+
 func (u *phoneUI) tree() map[string]any {
 	var kids []any
 	for _, n := range u.nodes() {
-		kids = append(kids, map[string]any{
-			"text": n.Text, "id": n.ID, "desc": n.Desc, "class": n.Class, "package": u.pkg,
-			"bounds": n.Bounds, "clickable": n.Clickable, "long_clickable": false, "checkable": n.Checkable,
-			"checked": n.Checked, "enabled": !n.Disabled, "focused": n.ID != "" && n.ID == u.focused,
-			"selected": n.Selected, "scrollable": false, "editable": n.Editable, "password": n.Password,
-			"children": []any{},
-		})
+		f := u.fields(n)
+		f["children"] = []any{}
+		kids = append(kids, f)
 	}
 	return map[string]any{"class": "android.widget.FrameLayout", "package": u.pkg, "bounds": [4]int{0, 0, screenW, screenH},
 		"text": "", "id": "", "desc": "", "clickable": false, "enabled": true, "children": kids}
