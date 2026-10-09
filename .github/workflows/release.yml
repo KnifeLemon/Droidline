@@ -1,7 +1,7 @@
 name: release
 
-# Push a tag like v0.1.0. Binaries, the signed APK and checksums go to a draft
-# GitHub release; the SDKs go to PyPI and npm; the relay image goes to GHCR.
+# Add a section to CHANGELOG.md, then push a tag like v0.1.0. Binaries, the signed APK and checksums go to a
+# published GitHub release titled "Droidline <version>"; the SDKs go to PyPI and npm; the relay image goes to GHCR.
 on:
   push:
     tags: ["v*"]
@@ -89,20 +89,39 @@ jobs:
     if: ${{ !cancelled() && needs.binaries.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
       - name: checksums
         run: cd dist && sha256sum * > SHA256SUMS
-      - name: draft release
+      - name: publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          version=${GITHUB_REF_NAME#v}
+          # The "## <version>" section of CHANGELOG.md without its heading; wrapped list items joined into one line,
+          # because GitHub keeps the file's line breaks in release notes.
+          changes=$(awk -v v="$version" '$0 ~ "^## " v "[ \t]*$" {f=1; next} f && /^## / {exit} f' CHANGELOG.md \
+            | perl -0pe 's/\n  (?=\S)/ /g; s/\A\s+|\s+\z//g')
+          [ -n "$changes" ] || echo "::warning::CHANGELOG.md has no section for $version"
+          # GitHub's generated notes: the merged pull requests, new contributors and the full changelog link.
+          generated=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$GITHUB_REF_NAME" --jq .body)
+          prs=$(printf '%s\n' "$generated" | awk '/^## What.s Changed/ {f=1; next} /^## |^\*\*Full Changelog/ {f=0} f && /^\* /')
+          tail=$(printf '%s\n' "$generated" | awk '/^## New Contributors|^\*\*Full Changelog/ {f=1} f')
+          {
+            echo "## What's Changed"
+            [ -n "$changes" ] && printf '\n%s\n' "$changes"
+            [ -n "$prs" ] && printf '\n### Pull requests\n\n%s\n' "$prs"
+            [ -n "$tail" ] && printf '\n%s\n' "$tail"
+          } > "$RUNNER_TEMP/notes.md"
+          # A re-run finds the release already there: replace the files and the notes, and make sure it is published.
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "Droidline $version" --notes-file "$RUNNER_TEMP/notes.md" --draft=false
           else
-            gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --draft
+            gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "Droidline $version" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
           fi
 
   pypi:
