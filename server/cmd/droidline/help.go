@@ -29,7 +29,7 @@ Setup
   droidline pair                  show a QR code to pair a phone
   droidline pair <code>           approve the phone showing this 6-digit code
   droidline devices               list paired phones
-  droidline mcp                   MCP server for AI agents (stdio)
+  droidline mcp                   MCP server for AI agents (stdio); --tools a,b or --read-only to narrow it
   droidline doctor                check the setup
 
 Optional

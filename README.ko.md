@@ -143,7 +143,7 @@ curl -s -X POST localhost:8780/devices/_/touch \
 { "mcpServers": { "droidline": { "command": "droidline", "args": ["mcp"] } } }
 ```
 
-Claude Code에서는 `claude mcp add droidline -- droidline mcp`. Claude Desktop에서는 [Releases](https://github.com/KnifeLemon/Droidline/releases/latest)의 `droidline.mcpb`를 열어도 됩니다. 안에 `droidline`이 들어 있고, [MCP Registry](https://registry.modelcontextprotocol.io)에는 `io.github.KnifeLemon/droidline`으로 올라가 있습니다. 그 밖의 언어는 TCP 소켓을 열어 명령마다 JSON 한 줄을 보내면 됩니다. Go, Java, PHP 예제는 [다른 언어](https://droidline.dev/ko/docs/other-languages/)에 있습니다.
+Claude Code에서는 `claude mcp add droidline -- droidline mcp`. Claude Desktop에서는 [Releases](https://github.com/KnifeLemon/Droidline/releases/latest)의 `droidline.mcpb`를 열어도 됩니다. 안에 `droidline`이 들어 있고, [MCP Registry](https://registry.modelcontextprotocol.io)에는 `io.github.KnifeLemon/droidline`으로 올라가 있습니다. 에이전트에게 도구를 일부만 주려면 args에 `--tools dump,screenshot,touch`나 `--read-only`를 더하세요. 자세한 내용은 [에이전트가 쓸 수 있는 도구 줄이기](https://droidline.dev/ko/docs/ai-agents/)에 있습니다. 그 밖의 언어는 TCP 소켓을 열어 명령마다 JSON 한 줄을 보내면 됩니다. Go, Java, PHP 예제는 [다른 언어](https://droidline.dev/ko/docs/other-languages/)에 있습니다.
 
 ## 기능
 

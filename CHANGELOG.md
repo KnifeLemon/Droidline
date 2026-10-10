@@ -6,6 +6,20 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.6
+
+### New, all optional
+
+- `droidline mcp --tools dump,screenshot,touch` lists and allows only those tools. A call to any other tool is refused,
+  and a misspelled tool name stops the server from starting.
+- `droidline mcp --read-only` keeps only the tools that look at the phone, such as `dump`, `screenshot`, `ocr`,
+  `exists` and `notifications`. With both options, a tool has to pass each. Without them nothing changes.
+
+### Fixes
+
+- `tap_image` and `ocr_tap` were marked read-only in their MCP annotations although they tap. They are now marked as
+  actions, so clients that ask before an action ask for these too.
+
 ## 0.1.5
 
 ### New

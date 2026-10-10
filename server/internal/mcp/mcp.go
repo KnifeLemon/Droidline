@@ -1,4 +1,4 @@
-// Package mcp exposes every Droidline command as an MCP tool over stdio.
+// Package mcp exposes Droidline commands as MCP tools over stdio: all of them, or the set chosen with --tools and --read-only.
 package mcp
 
 import (
@@ -21,6 +21,51 @@ import (
 
 type Options struct {
 	Addr, Token, Device, Home string
+	// Tools, when set, are the only tools listed and callable. ReadOnly keeps only the tools that never act on the
+	// phone. Both are off by default; with both, a tool must pass each.
+	Tools    []string
+	ReadOnly bool
+}
+
+// readOnlyTools only look at the phone. Condition commands (exists, checked, battery and the like) are read-only too.
+var readOnlyTools = map[string]bool{
+	"dump": true, "screenshot": true, "find_image": true, "ocr": true, "ocr_find": true,
+	"wait": true, "wait_gone": true, "wait_idle": true, "find": true,
+	"info": true, "devices": true, "apps": true, "notifications": true, "wait_notification": true,
+}
+
+func isReadOnly(c *spec.Command) bool { return c.Condition || readOnlyTools[c.Name] }
+
+// allowed returns the commands this session may list and call, or an error naming a tool that does not exist.
+func allowed(sp *spec.Spec, o Options) (map[string]bool, error) {
+	var only map[string]bool
+	if len(o.Tools) > 0 {
+		only = map[string]bool{}
+		for _, t := range o.Tools {
+			t = strings.TrimSpace(t)
+			if t == "" {
+				continue
+			}
+			found := false
+			for _, c := range sp.Commands {
+				if c.InMCP() && (c.Name == t || toolName(c.Name) == t) {
+					only[c.Name] = true
+					found = true
+				}
+			}
+			if !found {
+				return nil, fmt.Errorf("--tools: no MCP tool named %q", t)
+			}
+		}
+	}
+	out := map[string]bool{}
+	for _, c := range sp.Commands {
+		if !c.InMCP() || (only != nil && !only[c.Name]) || (o.ReadOnly && !isReadOnly(c)) {
+			continue
+		}
+		out[c.Name] = true
+	}
+	return out, nil
 }
 
 var versions = []string{"2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"}
@@ -43,6 +88,11 @@ type rpc struct {
 // Run serves MCP on stdin/stdout until stdin closes. If no server is running it
 // starts one inside this process, logging to stderr so stdout stays protocol-only.
 func Run(o Options) error {
+	sp := spec.MustLoad()
+	allow, err := allowed(sp, o)
+	if err != nil {
+		return err
+	}
 	cl, err := client.Dial(o.Addr, o.Token)
 	if errors.Is(err, client.ErrNotRunning) {
 		st, serr := store.Open(o.Home)
@@ -61,13 +111,14 @@ func Run(o Options) error {
 		return err
 	}
 	defer cl.Close()
-	s := &session{cl: cl, sp: spec.MustLoad(), device: o.Device, out: bufio.NewWriter(os.Stdout)}
+	s := &session{cl: cl, sp: sp, allow: allow, device: o.Device, out: bufio.NewWriter(os.Stdout)}
 	return s.serve(os.Stdin)
 }
 
 type session struct {
 	cl     *client.Client
 	sp     *spec.Spec
+	allow  map[string]bool
 	device string
 	wmu    sync.Mutex
 	out    *bufio.Writer
@@ -173,7 +224,7 @@ func toolName(cmd string) string { return strings.ReplaceAll(cmd, ".", "_") }
 func (s *session) tools() []any {
 	var out []any
 	for _, c := range s.sp.Commands {
-		if !c.InMCP() {
+		if !s.allow[c.Name] {
 			continue
 		}
 		props := map[string]any{}
@@ -205,7 +256,7 @@ func (s *session) tools() []any {
 			desc += " Example: " + c.Example
 		}
 		tool := map[string]any{"name": toolName(c.Name), "description": desc, "inputSchema": schema}
-		readOnly := c.Condition || c.Group == "check" || c.Group == "screen" || c.Name == "devices" || c.Name == "info"
+		readOnly := isReadOnly(c)
 		destructive := c.Name == "clear_data" || c.Name == "proxy" || c.Name == "batch"
 		tool["annotations"] = map[string]any{"readOnlyHint": readOnly, "destructiveHint": destructive, "openWorldHint": false}
 		out = append(out, tool)
@@ -267,6 +318,9 @@ func (s *session) callTool(name string, args map[string]any) map[string]any {
 		if toolName(c.Name) == name {
 			cmdName = c.Name
 		}
+	}
+	if !s.allow[cmdName] {
+		return textResult("tool not allowed: "+name+" is not in this server's --tools or --read-only set", true)
 	}
 	req := map[string]any{"cmd": cmdName}
 	for k, v := range args {
@@ -351,9 +405,9 @@ func compact(n map[string]any) map[string]any {
 func (s *session) readResource(id json.RawMessage, uri string) {
 	var req map[string]any
 	switch {
-	case uri == "droidline://devices":
+	case uri == "droidline://devices" && s.allow["devices"]:
 		req = map[string]any{"cmd": "devices"}
-	case strings.HasPrefix(uri, "droidline://devices/") && strings.HasSuffix(uri, "/screen"):
+	case strings.HasPrefix(uri, "droidline://devices/") && strings.HasSuffix(uri, "/screen") && s.allow["dump"]:
 		dev := strings.TrimSuffix(strings.TrimPrefix(uri, "droidline://devices/"), "/screen")
 		req = map[string]any{"cmd": "dump", "device": dev}
 	default:

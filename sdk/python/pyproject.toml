@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "droidline"
-version = "0.1.5"
+version = "0.1.6"
 description = "Android automation from Python: test your apps on real phones, script the tasks you repeat and run many phones at once. No ADB, no USB cable, no root."
 readme = "README.md"
 requires-python = ">=3.9"

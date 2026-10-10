@@ -18,7 +18,6 @@ import (
 
 	"github.com/KnifeLemon/Droidline/server/internal/client"
 	"github.com/KnifeLemon/Droidline/server/internal/hub"
-	"github.com/KnifeLemon/Droidline/server/internal/mcp"
 	"github.com/KnifeLemon/Droidline/server/internal/store"
 	"github.com/KnifeLemon/Droidline/spec"
 )
@@ -60,7 +59,7 @@ func main() {
 	case "webhook":
 		err = cmdWebhook(g, args[1:])
 	case "mcp":
-		err = mcp.Run(mcp.Options{Addr: g.addr, Token: g.token, Device: g.device, Home: g.home})
+		err = cmdMCP(g, args[1:])
 	case "webdriver":
 		err = cmdWebDriver(g, args[1:])
 	case "inspect":

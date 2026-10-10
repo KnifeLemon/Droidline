@@ -6,11 +6,29 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/KnifeLemon/Droidline/server/internal/hub"
 	"github.com/KnifeLemon/Droidline/server/internal/inspect"
+	"github.com/KnifeLemon/Droidline/server/internal/mcp"
 	"github.com/KnifeLemon/Droidline/server/internal/webdriver"
 )
+
+// cmdMCP serves MCP on stdio. --tools and --read-only narrow what an agent can list and call; without them every tool is
+// there, as before.
+func cmdMCP(g globals, args []string) error {
+	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
+	tools := fs.String("tools", "", "comma-separated tools the agent may use, such as dump,screenshot,touch")
+	readOnly := fs.Bool("read-only", false, "only tools that look at the phone and never act on it")
+	if err := fs.Parse(args); err != nil {
+		return usageErr{err.Error()}
+	}
+	var list []string
+	if *tools != "" {
+		list = strings.Split(*tools, ",")
+	}
+	return mcp.Run(mcp.Options{Addr: g.addr, Token: g.token, Device: g.device, Home: g.home, Tools: list, ReadOnly: *readOnly})
+}
 
 // cmdWebDriver runs the optional Appium-compatible bridge until Ctrl+C.
 func cmdWebDriver(g globals, args []string) error {
