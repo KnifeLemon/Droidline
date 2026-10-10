@@ -19,8 +19,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class DroidNotificationListener : NotificationListenerService() {
+    /** Keys of notifications now showing, so a post with a known key can be reported as an update. */
+    private val showing = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
     override fun onListenerConnected() {
         instance = this
+        showing.clear()
+        runCatching { activeNotifications?.forEach { showing.add(it.key) } }
         Agent.refreshReady()
     }
 
@@ -30,10 +35,15 @@ class DroidNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        val update = !showing.add(sbn.key)
         if (sbn.packageName !in Agent.settings.notifyAllowlist) return
         if (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
-        val event = toJson(sbn).put("event", "notification")
+        val event = toJson(sbn).put("event", "notification").put("update", update)
         Agent.emit(event, Session.KIND_NOTIFICATION)
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        showing.remove(sbn.key)
     }
 
     companion object {
@@ -55,6 +65,7 @@ class DroidNotificationListener : NotificationListenerService() {
                 .put("package", sbn.packageName)
                 .put("title", ex.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty())
                 .put("text", text?.toString().orEmpty())
+                .put("lines", JSONArray(ex.getCharSequenceArray(Notification.EXTRA_TEXT_LINES).orEmpty().map { it.toString() }))
                 .put("time", sbn.postTime)
                 .put("actions", JSONArray(actionNames(sbn.notification)))
         }

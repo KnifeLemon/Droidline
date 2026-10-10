@@ -463,7 +463,7 @@ func cutsNetwork(name string, m map[string]any) bool {
 // PostNotification simulates an app posting a notification on the phone.
 func (a *Agent) PostNotification(pkg, title, text string) {
 	key := fmt.Sprintf("0|%s|%d|null|10123", pkg, time.Now().UnixNano()%100000)
-	n := map[string]any{"key": key, "package": pkg, "title": title, "text": text,
+	n := map[string]any{"key": key, "package": pkg, "title": title, "text": text, "lines": []string{},
 		"time": time.Now().UnixMilli(), "actions": []string{"reply"}}
 	a.ui.addNotification(n)
 	a.mu.Lock()
@@ -472,6 +472,7 @@ func (a *Agent) PostNotification(pkg, title, text string) {
 	if allowed {
 		ev := copyMsg(n)
 		ev["event"] = "notification"
+		ev["update"] = false
 		a.emit(ev)
 	}
 }

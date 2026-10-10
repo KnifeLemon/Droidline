@@ -314,11 +314,17 @@ public sealed class Notification : DroidlineObject
     /// <summary>The text field as a plain value, or null when it is missing. Get&lt;T&gt;("text") converts it.</summary>
     public object? Text => Get<object>("text");
 
+    /// <summary>The lines field as a plain value, or null when it is missing. Get&lt;T&gt;("lines") converts it.</summary>
+    public object? Lines => Get<object>("lines");
+
     /// <summary>The time field as a plain value, or null when it is missing. Get&lt;T&gt;("time") converts it.</summary>
     public object? Time => Get<object>("time");
 
     /// <summary>The actions field as a plain value, or null when it is missing. Get&lt;T&gt;("actions") converts it.</summary>
     public object? Actions => Get<object>("actions");
+
+    /// <summary>The update field as a plain value, or null when it is missing. Get&lt;T&gt;("update") converts it.</summary>
+    public object? Update => Get<object>("update");
 }
 
 /// <summary>A app object from the server.</summary>

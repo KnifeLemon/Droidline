@@ -6,6 +6,16 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.7
+
+### New
+
+- Notifications have a `lines` field with the separate lines of a notification that gathers several alerts into
+  one, where `text` is often only a summary. It is an empty list for ordinary notifications. Update the app to get it.
+- Notification events have an `update` field: `true` when the app changed a notification that was already showing,
+  `false` when it is new. The `key` stays the same across updates, so code that should act once per deposit or code
+  can skip updates.
+
 ## 0.1.6
 
 ### New, all optional

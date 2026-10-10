@@ -115,8 +115,10 @@ export interface Notification {
   package?: any;
   title?: any;
   text?: any;
+  lines?: any;
   time?: any;
   actions?: any;
+  update?: any;
   [field: string]: any;
 }
 

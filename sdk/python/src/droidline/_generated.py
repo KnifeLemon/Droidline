@@ -101,8 +101,10 @@ Notification = TypedDict(
         "package": Any,
         "title": Any,
         "text": Any,
+        "lines": Any,
         "time": Any,
         "actions": Any,
+        "update": Any,
     },
     total=False,
 )

@@ -738,7 +738,7 @@
       "fields": ["text", "id", "desc", "class", "package", "bounds", "clickable", "long_clickable", "checkable", "checked", "enabled", "focused", "selected", "scrollable", "editable", "password", "visible", "children"]
     },
     "device": { "fields": ["id", "name", "model", "sdk", "online", "route", "agent", "ready", "last_seen", "leased"] },
-    "notification": { "fields": ["key", "package", "title", "text", "time", "actions"] },
+    "notification": { "fields": ["key", "package", "title", "text", "lines", "time", "actions", "update"] },
     "app": { "fields": ["package", "label", "version", "system"] }
   }
 }

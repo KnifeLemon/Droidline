@@ -8,11 +8,11 @@
     "url": "https://github.com/KnifeLemon/Droidline",
     "source": "github"
   },
-  "version": "0.1.6",
+  "version": "0.1.7",
   "packages": [
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/KnifeLemon/Droidline/releases/download/v0.1.6/droidline.mcpb",
+      "identifier": "https://github.com/KnifeLemon/Droidline/releases/download/v0.1.7/droidline.mcpb",
       "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "transport": {
         "type": "stdio"
