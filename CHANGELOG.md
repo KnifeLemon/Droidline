@@ -6,6 +6,16 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.9
+
+### Fixes
+
+- `droidline pair` and the other `droidline` commands, including `droidline mcp`, now reach the server on the port set
+  in `[client] listen` in `config.toml`. They used `127.0.0.1:8780` unless `--addr` or `DROIDLINE_ADDR` said
+  otherwise, so a changed port looked like no server was running. `--addr` and the `DROIDLINE_*` variables still win.
+  (#1)
+- When no server answers, the message names the address that was tried.
+
 ## 0.1.8
 
 ### New

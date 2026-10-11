@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -159,6 +160,28 @@ func DefaultDir() string {
 		return filepath.Join(base, "Droidline")
 	}
 	return filepath.Join(base, "droidline")
+}
+
+// ClientDialAddr returns where a CLI on this PC should reach the server, from [client] listen in dir/config.toml.
+// It only reads the file, so a missing or unreadable config gives ok false and the caller keeps its default.
+// A listen address without a host, or on all interfaces, is dialled on 127.0.0.1.
+func ClientDialAddr(dir string) (addr string, ok bool) {
+	var c struct {
+		Client struct {
+			Listen string `toml:"listen"`
+		} `toml:"client"`
+	}
+	if _, err := toml.DecodeFile(filepath.Join(dir, "config.toml"), &c); err != nil || c.Client.Listen == "" {
+		return "", false
+	}
+	host, port, err := net.SplitHostPort(c.Client.Listen)
+	if err != nil || port == "" {
+		return "", false
+	}
+	if ip := net.ParseIP(host); host == "" || (ip != nil && ip.IsUnspecified()) {
+		host = "127.0.0.1"
+	}
+	return net.JoinHostPort(host, port), true
 }
 
 func Open(dir string) (*Store, error) {

@@ -31,7 +31,7 @@ func Dial(addr, token string) (*Client, error) {
 	if err != nil {
 		var op *net.OpError
 		if errors.As(err, &op) && op.Op == "dial" {
-			return nil, ErrNotRunning
+			return nil, fmt.Errorf("%w (nothing answered at %s)", ErrNotRunning, addr)
 		}
 		return nil, err
 	}

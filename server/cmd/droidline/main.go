@@ -98,6 +98,7 @@ func parseGlobals(in []string) (globals, []string) {
 	if h := os.Getenv("DROIDLINE_HOST"); h != "" {
 		g.addr = h + ":" + envOr("DROIDLINE_PORT", "8780")
 	}
+	addrSet := os.Getenv("DROIDLINE_ADDR") != "" || os.Getenv("DROIDLINE_HOST") != "" || os.Getenv("DROIDLINE_PORT") != ""
 	var rest []string
 	for i := 0; i < len(in); i++ {
 		a := in[i]
@@ -114,6 +115,7 @@ func parseGlobals(in []string) (globals, []string) {
 		switch name, _, _ := strings.Cut(a, "="); name {
 		case "--addr":
 			g.addr = val()
+			addrSet = true
 		case "--token":
 			g.token = val()
 		case "--device", "-d":
@@ -128,6 +130,12 @@ func parseGlobals(in []string) (globals, []string) {
 			g.verbose = true
 		default:
 			rest = append(rest, a)
+		}
+	}
+	// Without --addr or an environment override, talk to the port the server in --home listens on.
+	if !addrSet {
+		if a, ok := store.ClientDialAddr(g.home); ok {
+			g.addr = a
 		}
 	}
 	return g, rest
