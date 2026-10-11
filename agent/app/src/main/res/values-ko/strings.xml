@@ -105,4 +105,8 @@
     <string name="owner_body">켜져 있습니다. clear_data가 설정 화면 없이 바로 지우고, 이 모드를 끄기 전에는 앱을 삭제할 수 없습니다.</string>
     <string name="btn_owner_release">끄기</string>
     <string name="owner_release_confirm">기기 소유자 모드를 끌까요? clear_data는 더 이상 동작하지 않고, 앱을 삭제할 수 있게 됩니다. 다시 켜려면 컴퓨터가 필요합니다.</string>
+    <string name="sponsor_title">Droidline 후원하기</string>
+    <string name="sponsor_body">Droidline은 무료 오픈소스입니다. 쓸모가 있었다면 개발을 후원할 수 있습니다.</string>
+    <string name="btn_sponsor">후원 페이지 열기</string>
+    <string name="sponsor_url">https://fairy.hada.io/@droidline</string>
 </resources>

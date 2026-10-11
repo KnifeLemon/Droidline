@@ -108,4 +108,8 @@
     <string name="owner_body">On. clear_data wipes apps directly, and the app cannot be uninstalled until you turn this off.</string>
     <string name="btn_owner_release">Turn off</string>
     <string name="owner_release_confirm">Turn off device owner mode? clear_data stops working, and the app can be uninstalled again. Setting it again needs a computer.</string>
+    <string name="sponsor_title">Support Droidline</string>
+    <string name="sponsor_body">Droidline is free and open source. If it saves you time, you can sponsor its development.</string>
+    <string name="btn_sponsor">Open sponsor page</string>
+    <string name="sponsor_url">https://github.com/sponsors/KnifeLemon</string>
 </resources>

@@ -12,6 +12,7 @@
   <a href="https://droidline.dev/ko/"><b>웹사이트</b></a> ·
   <a href="https://droidline.dev/ko/docs/"><b>문서</b></a> ·
   <a href="https://github.com/KnifeLemon/Droidline/releases/latest"><b>내려받기</b></a> ·
+  <a href="https://fairy.hada.io/@droidline"><b>후원하기</b></a> ·
   <a href="#빠른-시작">빠른 시작</a> ·
   <a href="#언어별로-쓰기">언어별 사용법</a> ·
   <a href="#문서">가이드</a>

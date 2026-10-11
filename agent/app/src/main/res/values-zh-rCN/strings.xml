@@ -105,4 +105,8 @@
     <string name="owner_body">已开启。clear_data 直接清除数据，关闭此模式前无法卸载本应用。</string>
     <string name="btn_owner_release">关闭</string>
     <string name="owner_release_confirm">要关闭设备所有者模式吗？clear_data 将无法使用，本应用也可以正常卸载。再次开启需要电脑。</string>
+    <string name="sponsor_title">赞助 Droidline</string>
+    <string name="sponsor_body">Droidline 免费开源。如果它帮你省了时间，可以赞助它的开发。</string>
+    <string name="btn_sponsor">打开赞助页面</string>
+    <string name="sponsor_url">https://github.com/sponsors/KnifeLemon</string>
 </resources>

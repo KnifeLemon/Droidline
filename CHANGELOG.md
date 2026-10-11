@@ -6,6 +6,13 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.8
+
+### New
+
+- The app's Status tab ends with a card that opens the sponsor page: Fairy when the phone is in Korean, GitHub
+  Sponsors otherwise. The repository has a Sponsor button, and the README links to the same pages.
+
 ## 0.1.7
 
 ### New

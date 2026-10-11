@@ -120,6 +120,15 @@ fun StatusScreen(tick: Int) {
                 TextButton(onClick = { confirmRelease = true }) { Text(stringResource(R.string.btn_owner_release), color = MaterialTheme.colorScheme.error) }
             }
         }
+
+        val sponsorUrl = stringResource(R.string.sponsor_url)
+        Section {
+            Text(stringResource(R.string.sponsor_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.sponsor_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(onClick = {
+                runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(sponsorUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            }) { Text(stringResource(R.string.btn_sponsor)) }
+        }
     }
 
     if (picking) {

@@ -12,6 +12,7 @@
   <a href="https://droidline.dev/zh/"><b>网站</b></a> ·
   <a href="https://droidline.dev/zh/docs/"><b>文档</b></a> ·
   <a href="https://github.com/KnifeLemon/Droidline/releases/latest"><b>下载</b></a> ·
+  <a href="https://github.com/sponsors/KnifeLemon"><b>赞助</b></a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="#在你的语言中使用">各语言用法</a> ·
   <a href="#文档">指南</a>
