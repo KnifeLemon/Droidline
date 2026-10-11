@@ -210,6 +210,7 @@ Droidline 只使用普通应用能获得的权限，因此有些事做不到，�
 | 不用手机写出第一个脚本 | [你的第一个脚本](https://droidline.dev/zh/docs/tutorial/) |
 | 用我的语言 | [Python](https://droidline.dev/zh/docs/python/) · [Node.js](https://droidline.dev/zh/docs/nodejs/) · [CLI](https://droidline.dev/zh/docs/cli/) · [HTTP](https://droidline.dev/zh/docs/http/) · [AI 智能体](https://droidline.dev/zh/docs/ai-agents/) |
 | 在界面上找到合适的元素 | [查找元素](https://droidline.dev/zh/docs/finding-elements/) |
+| 打开应用、链接和设置页面，或列出已安装的应用 | [应用](https://droidline.dev/zh/docs/apps/) |
 | 点选元素，或录制脚本 | [界面检查与录制](https://droidline.dev/zh/docs/inspector/) |
 | 运行 Appium 脚本 | [Appium 与 WebDriver](https://droidline.dev/zh/docs/appium/) |
 | 用 pytest 或 Node.js 测试 | [测试框架](https://droidline.dev/zh/docs/testing/) |

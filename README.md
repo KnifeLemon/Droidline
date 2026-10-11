@@ -208,6 +208,7 @@ The [full list](https://droidline.dev/docs/limitations/) explains each one.
 | Write a first script without a phone | [Your first script](https://droidline.dev/docs/tutorial/) |
 | Use my language | [Python](https://droidline.dev/docs/python/) · [Node.js](https://droidline.dev/docs/nodejs/) · [CLI](https://droidline.dev/docs/cli/) · [HTTP](https://droidline.dev/docs/http/) · [AI agents](https://droidline.dev/docs/ai-agents/) |
 | Find the right element on a screen | [Finding elements](https://droidline.dev/docs/finding-elements/) |
+| Open apps, links and Settings pages, or list what is installed | [Apps](https://droidline.dev/docs/apps/) |
 | Point at elements, or record a script | [Inspector and recorder](https://droidline.dev/docs/inspector/) |
 | Run Appium scripts | [Appium and WebDriver](https://droidline.dev/docs/appium/) |
 | Test with pytest or Node.js | [Test frameworks](https://droidline.dev/docs/testing/) |

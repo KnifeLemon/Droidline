@@ -210,6 +210,7 @@ Droidline은 일반 앱이 받을 수 있는 권한만 씁니다. 그래서 못 
 | 폰 없이 첫 스크립트 작성 | [첫 스크립트 만들기](https://droidline.dev/ko/docs/tutorial/) |
 | 내 언어로 쓰기 | [Python](https://droidline.dev/ko/docs/python/) · [Node.js](https://droidline.dev/ko/docs/nodejs/) · [CLI](https://droidline.dev/ko/docs/cli/) · [HTTP](https://droidline.dev/ko/docs/http/) · [AI 에이전트](https://droidline.dev/ko/docs/ai-agents/) |
 | 화면에서 알맞은 요소 찾기 | [요소 찾기](https://droidline.dev/ko/docs/finding-elements/) |
+| 앱, 링크, 설정 화면 열기, 설치된 앱 목록 보기 | [앱 다루기](https://droidline.dev/ko/docs/apps/) |
 | 요소를 눌러 보며 찾거나, 스크립트 녹화하기 | [화면 검사와 녹화](https://droidline.dev/ko/docs/inspector/) |
 | Appium 스크립트 실행하기 | [Appium과 WebDriver](https://droidline.dev/ko/docs/appium/) |
 | pytest나 Node.js로 테스트하기 | [테스트 프레임워크](https://droidline.dev/ko/docs/testing/) |
