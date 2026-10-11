@@ -502,6 +502,38 @@ func TestImageAndOCR(t *testing.T) {
 		t.Fatalf("missing image: %v", miss)
 	}
 
+	// The options and the commands added in 0.1.11.
+	missing := base64.StdEncoding.EncodeToString(buf.Bytes())
+	if r.mustOK(map[string]any{"cmd": "image_exists", "image": part})["value"] != true {
+		t.Fatal("image_exists did not see the box")
+	}
+	if r.mustOK(map[string]any{"cmd": "image_exists", "image": missing})["value"] != false {
+		t.Fatal("image_exists saw a picture that is not there")
+	}
+	inRegion := r.mustOK(map[string]any{"cmd": "find_image", "image": part, "region": []any{0, 800, 1080, 1100}})
+	if inRegion["x"] != float64(540) || inRegion["y"] != float64(910) {
+		t.Fatalf("find_image in region = %v", inRegion)
+	}
+	if res := r.call(map[string]any{"cmd": "find_image", "image": part, "region": []any{0, 0, 1080, 300}, "timeout": 0.2}); res["error"] != "NOT_FOUND" {
+		t.Fatalf("find_image outside its region: %v", res)
+	}
+	if res := r.call(map[string]any{"cmd": "find_image", "image": part, "region": []any{0, 800}}); res["error"] != "BAD_ARGS" {
+		t.Fatalf("short region: %v", res)
+	}
+	all := r.mustOK(map[string]any{"cmd": "find_images", "image": part, "color": true, "scales": []any{1}})
+	if list, _ := all["value"].([]any); len(list) != 1 {
+		t.Fatalf("find_images = %v", all)
+	}
+	if none := r.mustOK(map[string]any{"cmd": "find_images", "image": missing}); len(none["value"].([]any)) != 0 {
+		t.Fatalf("find_images for a missing picture = %v", none)
+	}
+	if gone := r.mustOK(map[string]any{"cmd": "wait_image_gone", "image": missing, "timeout": 1}); gone["ms"] == nil {
+		t.Fatalf("wait_image_gone = %v", gone)
+	}
+	if res := r.call(map[string]any{"cmd": "wait_image_gone", "image": part, "timeout": 0.5}); res["error"] != "TIMEOUT" {
+		t.Fatalf("wait_image_gone on a picture that stays: %v", res)
+	}
+
 	r.srv.Hub.SetOCRPath(t.TempDir() + "/no-tesseract.exe")
 	if res := r.call(map[string]any{"cmd": "ocr"}); res["error"] != "OCR_UNAVAILABLE" {
 		t.Fatalf("ocr without tesseract: %v", res)

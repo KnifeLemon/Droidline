@@ -110,6 +110,14 @@ export interface DeviceInfo {
   [field: string]: any;
 }
 
+export interface ImageMatch {
+  x?: any;
+  y?: any;
+  bounds?: any;
+  score?: any;
+  [field: string]: any;
+}
+
 export interface Notification {
   key?: any;
   package?: any;
@@ -248,6 +256,12 @@ export interface FindImageOptions {
   threshold?: number;
   /** Seconds to wait for the target to appear. @default 10 */
   timeout?: number;
+  /** Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match. */
+  region?: ReadonlyArray<number>;
+  /** Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time. */
+  scales?: ReadonlyArray<number>;
+  /** Also require the average color to agree, so a red and a green button of the same shape differ. @default false */
+  color?: boolean;
 }
 
 export interface FindImageResult {
@@ -262,12 +276,61 @@ export interface TapImageOptions {
   threshold?: number;
   /** Seconds to wait for the target to appear. @default 10 */
   timeout?: number;
+  /** Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match. */
+  region?: ReadonlyArray<number>;
+  /** Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time. */
+  scales?: ReadonlyArray<number>;
+  /** Also require the average color to agree, so a red and a green button of the same shape differ. @default false */
+  color?: boolean;
 }
 
 export interface TapImageResult {
   x: number;
   y: number;
   score: number;
+  ms: number;
+}
+
+export interface ImageExistsOptions {
+  /** How close the match must be, from 0 to 1. @default 0.9 */
+  threshold?: number;
+  /** Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match. */
+  region?: ReadonlyArray<number>;
+  /** Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time. */
+  scales?: ReadonlyArray<number>;
+  /** Also require the average color to agree, so a red and a green button of the same shape differ. @default false */
+  color?: boolean;
+}
+
+export interface FindImagesOptions {
+  /** How close the match must be, from 0 to 1. @default 0.9 */
+  threshold?: number;
+  /** Seconds to wait for at least one match. 0 answers at once. @default 0 */
+  timeout?: number;
+  /** Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match. */
+  region?: ReadonlyArray<number>;
+  /** Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time. */
+  scales?: ReadonlyArray<number>;
+  /** Also require the average color to agree, so a red and a green button of the same shape differ. @default false */
+  color?: boolean;
+  /** Most matches to return. @default 20 */
+  max?: number;
+}
+
+export interface WaitImageGoneOptions {
+  /** How close the match must be, from 0 to 1. @default 0.9 */
+  threshold?: number;
+  /** Seconds to wait for the target to appear. @default 10 */
+  timeout?: number;
+  /** Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match. */
+  region?: ReadonlyArray<number>;
+  /** Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time. */
+  scales?: ReadonlyArray<number>;
+  /** Also require the average color to agree, so a red and a green button of the same shape differ. @default false */
+  color?: boolean;
+}
+
+export interface WaitImageGoneResult {
   ms: number;
 }
 
@@ -772,11 +835,14 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see FindImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.find_image("ok-button.png")
@@ -785,11 +851,14 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see FindImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.find_image("ok-button.png")
@@ -798,18 +867,69 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see FindImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.find_image("ok-button.png")
    */
   find_image(image: string | Uint8Array, threshold?: number, timeout?: number, opts?: FindImageOptions): Promise<FindImageResult>;
+  /**
+   * Find a picture on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see FindImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.find_image("ok-button.png")
+   */
+  find_image(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, opts?: FindImageOptions): Promise<FindImageResult>;
+  /**
+   * Find a picture on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see FindImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.find_image("ok-button.png")
+   */
+  find_image(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: FindImageOptions): Promise<FindImageResult>;
+  /**
+   * Find a picture on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see FindImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.find_image("ok-button.png")
+   */
+  find_image(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: FindImageOptions): Promise<FindImageResult>;
   async find_image(...args: unknown[]): Promise<FindImageResult> {
-    const params = collect("find_image", args, ["image"], ["threshold", "timeout"]);
+    const params = collect("find_image", args, ["image"], ["threshold", "timeout", "region", "scales", "color"]);
     params["image"] = await this._loadImage(params["image"]);
     return this._run("find_image", "fields", params);
   }
@@ -817,11 +937,14 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see FindImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.find_image("ok-button.png")
@@ -831,11 +954,14 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see FindImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.find_image("ok-button.png")
@@ -845,19 +971,73 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see FindImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.find_image("ok-button.png")
    * @alias find_image
    */
   findImage(image: string | Uint8Array, threshold?: number, timeout?: number, opts?: FindImageOptions): Promise<FindImageResult>;
+  /**
+   * Find a picture on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see FindImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.find_image("ok-button.png")
+   * @alias find_image
+   */
+  findImage(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, opts?: FindImageOptions): Promise<FindImageResult>;
+  /**
+   * Find a picture on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see FindImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.find_image("ok-button.png")
+   * @alias find_image
+   */
+  findImage(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: FindImageOptions): Promise<FindImageResult>;
+  /**
+   * Find a picture on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see FindImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.find_image("ok-button.png")
+   * @alias find_image
+   */
+  findImage(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: FindImageOptions): Promise<FindImageResult>;
   async findImage(...args: unknown[]): Promise<FindImageResult> {
-    const params = collect("find_image", args, ["image"], ["threshold", "timeout"]);
+    const params = collect("find_image", args, ["image"], ["threshold", "timeout", "region", "scales", "color"]);
     params["image"] = await this._loadImage(params["image"]);
     return this._run("find_image", "fields", params);
   }
@@ -865,11 +1045,14 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen and tap its center.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see TapImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.tap_image("ok-button.png")
@@ -878,11 +1061,14 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen and tap its center.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see TapImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.tap_image("ok-button.png")
@@ -891,18 +1077,69 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen and tap its center.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see TapImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.tap_image("ok-button.png")
    */
   tap_image(image: string | Uint8Array, threshold?: number, timeout?: number, opts?: TapImageOptions): Promise<TapImageResult>;
+  /**
+   * Find a picture on the screen and tap its center.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see TapImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.tap_image("ok-button.png")
+   */
+  tap_image(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, opts?: TapImageOptions): Promise<TapImageResult>;
+  /**
+   * Find a picture on the screen and tap its center.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see TapImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.tap_image("ok-button.png")
+   */
+  tap_image(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: TapImageOptions): Promise<TapImageResult>;
+  /**
+   * Find a picture on the screen and tap its center.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see TapImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.tap_image("ok-button.png")
+   */
+  tap_image(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: TapImageOptions): Promise<TapImageResult>;
   async tap_image(...args: unknown[]): Promise<TapImageResult> {
-    const params = collect("tap_image", args, ["image"], ["threshold", "timeout"]);
+    const params = collect("tap_image", args, ["image"], ["threshold", "timeout", "region", "scales", "color"]);
     params["image"] = await this._loadImage(params["image"]);
     return this._run("tap_image", "fields", params);
   }
@@ -910,11 +1147,14 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen and tap its center.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see TapImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.tap_image("ok-button.png")
@@ -924,11 +1164,14 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen and tap its center.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see TapImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.tap_image("ok-button.png")
@@ -938,21 +1181,709 @@ export abstract class DeviceCommands {
   /**
    * Find a picture on the screen and tap its center.
    *
-   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
    *
    * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
    * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
    * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
    * @param opts Optional parameters by name, see TapImageOptions.
    * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
    * @example await d.tap_image("ok-button.png")
    * @alias tap_image
    */
   tapImage(image: string | Uint8Array, threshold?: number, timeout?: number, opts?: TapImageOptions): Promise<TapImageResult>;
+  /**
+   * Find a picture on the screen and tap its center.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see TapImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.tap_image("ok-button.png")
+   * @alias tap_image
+   */
+  tapImage(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, opts?: TapImageOptions): Promise<TapImageResult>;
+  /**
+   * Find a picture on the screen and tap its center.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see TapImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.tap_image("ok-button.png")
+   * @alias tap_image
+   */
+  tapImage(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: TapImageOptions): Promise<TapImageResult>;
+  /**
+   * Find a picture on the screen and tap its center.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see TapImageOptions.
+   * @throws {DroidlineError} with code NOT_FOUND, NO_PERMISSION.
+   * @example await d.tap_image("ok-button.png")
+   * @alias tap_image
+   */
+  tapImage(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: TapImageOptions): Promise<TapImageResult>;
   async tapImage(...args: unknown[]): Promise<TapImageResult> {
-    const params = collect("tap_image", args, ["image"], ["threshold", "timeout"]);
+    const params = collect("tap_image", args, ["image"], ["threshold", "timeout", "region", "scales", "color"]);
     params["image"] = await this._loadImage(params["image"]);
     return this._run("tap_image", "fields", params);
+  }
+
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   */
+  image_exists(image: string | Uint8Array, opts?: ImageExistsOptions): Promise<boolean>;
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   */
+  image_exists(image: string | Uint8Array, threshold?: number, opts?: ImageExistsOptions): Promise<boolean>;
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   */
+  image_exists(image: string | Uint8Array, threshold?: number, region?: ReadonlyArray<number>, opts?: ImageExistsOptions): Promise<boolean>;
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   */
+  image_exists(image: string | Uint8Array, threshold?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: ImageExistsOptions): Promise<boolean>;
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   */
+  image_exists(image: string | Uint8Array, threshold?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: ImageExistsOptions): Promise<boolean>;
+  async image_exists(...args: unknown[]): Promise<boolean> {
+    const params = collect("image_exists", args, ["image"], ["threshold", "region", "scales", "color"]);
+    params["image"] = await this._loadImage(params["image"]);
+    return this._run("image_exists", "value", params);
+  }
+
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   * @alias image_exists
+   */
+  imageExists(image: string | Uint8Array, opts?: ImageExistsOptions): Promise<boolean>;
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   * @alias image_exists
+   */
+  imageExists(image: string | Uint8Array, threshold?: number, opts?: ImageExistsOptions): Promise<boolean>;
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   * @alias image_exists
+   */
+  imageExists(image: string | Uint8Array, threshold?: number, region?: ReadonlyArray<number>, opts?: ImageExistsOptions): Promise<boolean>;
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   * @alias image_exists
+   */
+  imageExists(image: string | Uint8Array, threshold?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: ImageExistsOptions): Promise<boolean>;
+  /**
+   * Whether a picture is on the screen right now. Never waits.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see ImageExistsOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.image_exists("coin.png")
+   * @alias image_exists
+   */
+  imageExists(image: string | Uint8Array, threshold?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: ImageExistsOptions): Promise<boolean>;
+  async imageExists(...args: unknown[]): Promise<boolean> {
+    const params = collect("image_exists", args, ["image"], ["threshold", "region", "scales", "color"]);
+    params["image"] = await this._loadImage(params["image"]);
+    return this._run("image_exists", "value", params);
+  }
+
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   */
+  find_images(image: string | Uint8Array, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   */
+  find_images(image: string | Uint8Array, threshold?: number, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   */
+  find_images(image: string | Uint8Array, threshold?: number, timeout?: number, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   */
+  find_images(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   */
+  find_images(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   */
+  find_images(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   */
+  find_images(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, max?: number, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  async find_images(...args: unknown[]): Promise<Array<ImageMatch>> {
+    const params = collect("find_images", args, ["image"], ["threshold", "timeout", "region", "scales", "color", "max"]);
+    params["image"] = await this._loadImage(params["image"]);
+    return this._run("find_images", "value", params);
+  }
+
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   * @alias find_images
+   */
+  findImages(image: string | Uint8Array, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   * @alias find_images
+   */
+  findImages(image: string | Uint8Array, threshold?: number, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   * @alias find_images
+   */
+  findImages(image: string | Uint8Array, threshold?: number, timeout?: number, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   * @alias find_images
+   */
+  findImages(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   * @alias find_images
+   */
+  findImages(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   * @alias find_images
+   */
+  findImages(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  /**
+   * Every place a picture appears on the screen.
+   *
+   * Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for at least one match. 0 answers at once. Default: 0.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param max Most matches to return. Default: 20.
+   * @param opts Optional parameters by name, see FindImagesOptions.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.find_images("coin.png")
+   * @alias find_images
+   */
+  findImages(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, max?: number, opts?: FindImagesOptions): Promise<Array<ImageMatch>>;
+  async findImages(...args: unknown[]): Promise<Array<ImageMatch>> {
+    const params = collect("find_images", args, ["image"], ["threshold", "timeout", "region", "scales", "color", "max"]);
+    params["image"] = await this._loadImage(params["image"]);
+    return this._run("find_images", "value", params);
+  }
+
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   */
+  wait_image_gone(image: string | Uint8Array, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   */
+  wait_image_gone(image: string | Uint8Array, threshold?: number, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   */
+  wait_image_gone(image: string | Uint8Array, threshold?: number, timeout?: number, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   */
+  wait_image_gone(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   */
+  wait_image_gone(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   */
+  wait_image_gone(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  async wait_image_gone(...args: unknown[]): Promise<WaitImageGoneResult> {
+    const params = collect("wait_image_gone", args, ["image"], ["threshold", "timeout", "region", "scales", "color"]);
+    params["image"] = await this._loadImage(params["image"]);
+    return this._run("wait_image_gone", "fields", params);
+  }
+
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   * @alias wait_image_gone
+   */
+  waitImageGone(image: string | Uint8Array, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   * @alias wait_image_gone
+   */
+  waitImageGone(image: string | Uint8Array, threshold?: number, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   * @alias wait_image_gone
+   */
+  waitImageGone(image: string | Uint8Array, threshold?: number, timeout?: number, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   * @alias wait_image_gone
+   */
+  waitImageGone(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   * @alias wait_image_gone
+   */
+  waitImageGone(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  /**
+   * Wait until a picture is no longer on the screen.
+   *
+   * Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+   *
+   * @param image PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+   * @param threshold How close the match must be, from 0 to 1. Default: 0.9.
+   * @param timeout Seconds to wait for the target to appear. Default: 10.
+   * @param region Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+   * @param scales Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+   * @param color Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.
+   * @param opts Optional parameters by name, see WaitImageGoneOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_image_gone("loading.png")
+   * @alias wait_image_gone
+   */
+  waitImageGone(image: string | Uint8Array, threshold?: number, timeout?: number, region?: ReadonlyArray<number>, scales?: ReadonlyArray<number>, color?: boolean, opts?: WaitImageGoneOptions): Promise<WaitImageGoneResult>;
+  async waitImageGone(...args: unknown[]): Promise<WaitImageGoneResult> {
+    const params = collect("wait_image_gone", args, ["image"], ["threshold", "timeout", "region", "scales", "color"]);
+    params["image"] = await this._loadImage(params["image"]);
+    return this._run("wait_image_gone", "fields", params);
   }
 
   /**

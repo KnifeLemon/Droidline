@@ -227,6 +227,12 @@ func (s *Spec) coerce(c *Command, p *Param, v any) (any, error) {
 			return nil, bad("%v", err)
 		}
 		out = list
+	case "list<int>", "list<number>":
+		list, err := numberList(v, p.Type == "list<int>")
+		if err != nil {
+			return nil, bad("%v", err)
+		}
+		out = list
 	case "list<selector_pair>":
 		pairs, err := s.selectorPairs(v)
 		if err != nil {
@@ -471,6 +477,42 @@ func stringList(v any, allowSingle bool) ([]any, error) {
 	return list, nil
 }
 
+// numberList accepts a JSON array of numbers. With ints set, every item must be a whole number.
+func numberList(v any, ints bool) ([]any, error) {
+	list, ok := v.([]any)
+	if !ok {
+		return nil, fmt.Errorf("expected a list of numbers")
+	}
+	out := make([]any, len(list))
+	for i, it := range list {
+		if ints {
+			n, ok := asInt(it)
+			if !ok {
+				return nil, fmt.Errorf("expected a list of whole numbers")
+			}
+			out[i] = float64(n)
+			continue
+		}
+		switch n := it.(type) {
+		case float64:
+			out[i] = n
+		case int:
+			out[i] = float64(n)
+		case int64:
+			out[i] = float64(n)
+		case json.Number:
+			f, err := n.Float64()
+			if err != nil {
+				return nil, fmt.Errorf("expected a list of numbers")
+			}
+			out[i] = f
+		default:
+			return nil, fmt.Errorf("expected a list of numbers")
+		}
+	}
+	return out, nil
+}
+
 func asInt(v any) (int64, bool) {
 	switch n := v.(type) {
 	case int:
@@ -552,6 +594,22 @@ func (s *Spec) ParseArg(p *Param, raw string) (any, error) {
 			if part = strings.TrimSpace(part); part != "" {
 				out = append(out, part)
 			}
+		}
+		return out, nil
+	case "list<int>", "list<number>":
+		if strings.HasPrefix(raw, "[") {
+			return parseJSONArg(raw)
+		}
+		var out []any
+		for _, part := range strings.Split(raw, ",") {
+			if part = strings.TrimSpace(part); part == "" {
+				continue
+			}
+			f, err := strconv.ParseFloat(part, 64)
+			if err != nil {
+				return nil, fmt.Errorf("%s must be numbers separated by commas, such as 0,1200,1440,3088", p.Name)
+			}
+			out = append(out, f)
 		}
 		return out, nil
 	case "image":

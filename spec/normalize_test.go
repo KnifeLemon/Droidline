@@ -234,3 +234,33 @@ func TestParseQueryArg(t *testing.T) {
 		t.Errorf("plain selector parsed as %#v", v)
 	}
 }
+
+func TestNumberListsFromWireAndCLI(t *testing.T) {
+	s := MustLoad()
+	cmd, norm, err := s.Normalize("find_images", map[string]any{
+		"image": "aGk=", "region": []any{0.0, 800.0, 1080.0, 1100.0}, "scales": []any{0.8, 1.0, 1.25},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := norm["region"].([]any); len(r) != 4 || r[1] != 800.0 {
+		t.Fatalf("region %v", norm["region"])
+	}
+	if _, _, err := s.Normalize("find_images", map[string]any{"image": "aGk=", "region": []any{0.5, 1.0, 2.0, 3.0}}); err == nil {
+		t.Fatal("a fractional region should be refused")
+	}
+	if _, _, err := s.Normalize("find_images", map[string]any{"image": "aGk=", "scales": "big"}); err == nil {
+		t.Fatal("scales must be a list")
+	}
+	region := cmd.Param("region")
+	v, err := s.ParseArg(region, "0, 800,1080,1100")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := v.([]any); len(got) != 4 || got[3] != 1100.0 {
+		t.Fatalf("CLI region %v", v)
+	}
+	if _, err := s.ParseArg(region, "0,top,1080,1100"); err == nil {
+		t.Fatal("a word in the CLI region should be refused")
+	}
+}

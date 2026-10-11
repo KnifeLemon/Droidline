@@ -55,7 +55,8 @@ func (h *Hub) notFoundOn(d *Device, cmd, target string, timeout float64) Result 
 	return h.errResult("NOT_FOUND", map[string]any{"cmd": cmd, "target": target, "timeout": timeout, "screen": screen})
 }
 
-// visionCmd carries out find_image, tap_image, ocr, ocr_find and ocr_tap on the PC.
+// visionCmd carries out the picture commands (find_image, tap_image, image_exists, find_images, wait_image_gone)
+// and the OCR commands (ocr, ocr_find, ocr_tap) on the PC.
 func (h *Hub) visionCmd(d *Device, cmd *spec.Command, p map[string]any) Result {
 	start := time.Now()
 	timeout, _ := p["timeout"].(float64)
@@ -63,7 +64,7 @@ func (h *Hub) visionCmd(d *Device, cmd *spec.Command, p map[string]any) Result {
 	bad := func(reason string) Result { return h.errResult("BAD_ARGS", map[string]any{"cmd": cmd.Name, "reason": reason}) }
 
 	switch cmd.Name {
-	case "find_image", "tap_image":
+	case "find_image", "tap_image", "image_exists", "find_images", "wait_image_gone":
 		raw, err := base64.StdEncoding.DecodeString(fmt.Sprint(p["image"]))
 		if err != nil {
 			return bad("image is not base64")
@@ -73,12 +74,70 @@ func (h *Hub) visionCmd(d *Device, cmd *spec.Command, p map[string]any) Result {
 			return bad("image is not a PNG or JPEG: " + err.Error())
 		}
 		threshold, _ := p["threshold"].(float64)
+		opts, reason := imageOptions(p)
+		if reason != "" {
+			return bad(reason)
+		}
+		switch cmd.Name {
+		case "image_exists":
+			_, shot, errR := h.screenshot(d)
+			if errR != nil {
+				return errR
+			}
+			_, ok, err := vision.FindWith(shot, tmpl, threshold, opts)
+			if err != nil {
+				return bad(err.Error())
+			}
+			return Result{"ok": true, "value": ok}
+		case "find_images":
+			limit := 20
+			if n, ok := p["max"].(float64); ok && n > 0 {
+				limit = int(n)
+			}
+			for {
+				_, shot, errR := h.screenshot(d)
+				if errR != nil {
+					return errR
+				}
+				ms, err := vision.FindAll(shot, tmpl, threshold, opts, limit)
+				if err != nil {
+					return bad(err.Error())
+				}
+				if len(ms) > 0 || !time.Now().Before(deadline) {
+					list := make([]any, len(ms))
+					for i, m := range ms {
+						x, y := m.Center()
+						list[i] = map[string]any{"x": x, "y": y, "bounds": m.Bounds[:], "score": round3(m.Score)}
+					}
+					return Result{"ok": true, "value": list}
+				}
+				time.Sleep(300 * time.Millisecond)
+			}
+		case "wait_image_gone":
+			for {
+				_, shot, errR := h.screenshot(d)
+				if errR != nil {
+					return errR
+				}
+				_, ok, err := vision.FindWith(shot, tmpl, threshold, opts)
+				if err != nil {
+					return bad(err.Error())
+				}
+				if !ok {
+					return Result{"ok": true, "ms": time.Since(start).Milliseconds()}
+				}
+				if time.Now().After(deadline) {
+					return h.errResult("TIMEOUT", map[string]any{"cmd": cmd.Name, "timeout": timeout})
+				}
+				time.Sleep(300 * time.Millisecond)
+			}
+		}
 		for {
 			_, shot, errR := h.screenshot(d)
 			if errR != nil {
 				return errR
 			}
-			m, ok, err := vision.Find(shot, tmpl, threshold)
+			m, ok, err := vision.FindWith(shot, tmpl, threshold, opts)
 			if err != nil {
 				return bad(err.Error())
 			}
@@ -160,3 +219,31 @@ func ocrReason(err error) string {
 }
 
 func round3(f float64) float64 { return float64(int(f*1000+0.5)) / 1000 }
+
+// imageOptions reads region, scales and color for the picture commands. A non-empty reason means a bad argument.
+func imageOptions(p map[string]any) (vision.Options, string) {
+	var o vision.Options
+	if list, ok := p["region"].([]any); ok && len(list) > 0 {
+		if len(list) != 4 {
+			return o, "region needs four numbers: left, top, right, bottom"
+		}
+		for _, v := range list {
+			f, _ := v.(float64)
+			o.Region = append(o.Region, int(f))
+		}
+		if o.Region[2] <= o.Region[0] || o.Region[3] <= o.Region[1] {
+			return o, "region must have right greater than left and bottom greater than top"
+		}
+	}
+	if list, ok := p["scales"].([]any); ok {
+		for _, v := range list {
+			f, _ := v.(float64)
+			if f <= 0 || f > 4 {
+				return o, "each scale must be above 0 and at most 4"
+			}
+			o.Scales = append(o.Scales, f)
+		}
+	}
+	o.Color, _ = p["color"].(bool)
+	return o, ""
+}

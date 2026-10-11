@@ -94,6 +94,17 @@ DeviceInfo = TypedDict(
     total=False,
 )
 
+ImageMatch = TypedDict(
+    "ImageMatch",
+    {
+        "x": Any,
+        "y": Any,
+        "bounds": Any,
+        "score": Any,
+    },
+    total=False,
+)
+
 Notification = TypedDict(
     "Notification",
     {
@@ -140,6 +151,7 @@ FindImageResult = TypedDict(
     },
 )
 TapImageResult = TypedDict("TapImageResult", {"x": int, "y": int, "score": float, "ms": int})
+WaitImageGoneResult = TypedDict("WaitImageGoneResult", {"ms": int})
 OcrResult = TypedDict("OcrResult", {"text": str, "lines": List[Dict[str, Any]]})
 OcrFindResult = TypedDict("OcrFindResult", {"text": str, "x": int, "y": int, "bounds": List[int]})
 OcrTapResult = TypedDict("OcrTapResult", {"text": str, "x": int, "y": int, "ms": int})
@@ -556,15 +568,21 @@ class DeviceCommands:
         image: Union[str, bytes],
         threshold: Optional[float] = None,
         timeout: Optional[float] = None,
+        region: Optional[Sequence[int]] = None,
+        scales: Optional[Sequence[float]] = None,
+        color: Optional[bool] = None,
     ) -> FindImageResult:
         """Find a picture on the screen.
 
-        Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+        Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
 
         Args:
             image: PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
             threshold: How close the match must be, from 0 to 1. Default: 0.9.
             timeout: Seconds to wait for the target to appear. Default: 10.
+            region: Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+            scales: Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+            color: Also require the average color to agree, so a red and a green button of the same shape differ. Default: False.
 
         Raises:
             NotFoundError: The target did not appear in time. The current package/activity is returned in screen.
@@ -580,6 +598,9 @@ class DeviceCommands:
             {"image": image},
             threshold=threshold,
             timeout=timeout,
+            region=region,
+            scales=scales,
+            color=color,
         ))
 
     def tap_image(
@@ -587,15 +608,21 @@ class DeviceCommands:
         image: Union[str, bytes],
         threshold: Optional[float] = None,
         timeout: Optional[float] = None,
+        region: Optional[Sequence[int]] = None,
+        scales: Optional[Sequence[float]] = None,
+        color: Optional[bool] = None,
     ) -> TapImageResult:
         """Find a picture on the screen and tap its center.
 
-        Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.
+        Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
 
         Args:
             image: PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
             threshold: How close the match must be, from 0 to 1. Default: 0.9.
             timeout: Seconds to wait for the target to appear. Default: 10.
+            region: Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+            scales: Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+            color: Also require the average color to agree, so a red and a green button of the same shape differ. Default: False.
 
         Raises:
             NotFoundError: The target did not appear in time. The current package/activity is returned in screen.
@@ -611,6 +638,127 @@ class DeviceCommands:
             {"image": image},
             threshold=threshold,
             timeout=timeout,
+            region=region,
+            scales=scales,
+            color=color,
+        ))
+
+    def image_exists(
+        self,
+        image: Union[str, bytes],
+        threshold: Optional[float] = None,
+        region: Optional[Sequence[int]] = None,
+        scales: Optional[Sequence[float]] = None,
+        color: Optional[bool] = None,
+    ) -> bool:
+        """Whether a picture is on the screen right now. Never waits.
+
+        Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+
+        Args:
+            image: PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+            threshold: How close the match must be, from 0 to 1. Default: 0.9.
+            region: Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+            scales: Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+            color: Also require the average color to agree, so a red and a green button of the same shape differ. Default: False.
+
+        Raises:
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.image_exists("coin.png")
+        """
+        image = self._load_image(image)
+        return cast("bool", self._run(
+            "image_exists",
+            "value",
+            {"image": image},
+            threshold=threshold,
+            region=region,
+            scales=scales,
+            color=color,
+        ))
+
+    def find_images(
+        self,
+        image: Union[str, bytes],
+        threshold: Optional[float] = None,
+        timeout: Optional[float] = None,
+        region: Optional[Sequence[int]] = None,
+        scales: Optional[Sequence[float]] = None,
+        color: Optional[bool] = None,
+        max: Optional[int] = None,
+    ) -> List[ImageMatch]:
+        """Every place a picture appears on the screen.
+
+        Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.
+
+        Args:
+            image: PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+            threshold: How close the match must be, from 0 to 1. Default: 0.9.
+            timeout: Seconds to wait for at least one match. 0 answers at once. Default: 0.
+            region: Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+            scales: Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+            color: Also require the average color to agree, so a red and a green button of the same shape differ. Default: False.
+            max: Most matches to return. Default: 20.
+
+        Raises:
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.find_images("coin.png")
+        """
+        image = self._load_image(image)
+        return cast("List[ImageMatch]", self._run(
+            "find_images",
+            "value",
+            {"image": image},
+            threshold=threshold,
+            timeout=timeout,
+            region=region,
+            scales=scales,
+            color=color,
+            max=max,
+        ))
+
+    def wait_image_gone(
+        self,
+        image: Union[str, bytes],
+        threshold: Optional[float] = None,
+        timeout: Optional[float] = None,
+        region: Optional[Sequence[int]] = None,
+        scales: Optional[Sequence[float]] = None,
+        color: Optional[bool] = None,
+    ) -> WaitImageGoneResult:
+        """Wait until a picture is no longer on the screen.
+
+        Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.
+
+        Args:
+            image: PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.
+            threshold: How close the match must be, from 0 to 1. Default: 0.9.
+            timeout: Seconds to wait for the target to appear. Default: 10.
+            region: Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.
+            scales: Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.
+            color: Also require the average color to agree, so a red and a green button of the same shape differ. Default: False.
+
+        Raises:
+            DroidlineTimeoutError: The action itself timed out. Safe to retry.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.wait_image_gone("loading.png")
+        """
+        image = self._load_image(image)
+        return cast("WaitImageGoneResult", self._run(
+            "wait_image_gone",
+            "fields",
+            {"image": image},
+            threshold=threshold,
+            timeout=timeout,
+            region=region,
+            scales=scales,
+            color=color,
         ))
 
     def ocr(self, lang: Optional[str] = None) -> OcrResult:
@@ -1842,12 +1990,14 @@ __all__ = [
     "Step",
     "Node",
     "DeviceInfo",
+    "ImageMatch",
     "Notification",
     "App",
     "DumpResult",
     "ScreenshotResult",
     "FindImageResult",
     "TapImageResult",
+    "WaitImageGoneResult",
     "OcrResult",
     "OcrFindResult",
     "OcrTapResult",

@@ -6,6 +6,21 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.11
+
+### New, all optional
+
+Picture search for games and other screens without elements. Nothing changes until you use these.
+
+- `image_exists(image)` answers `true` or `false` at once and never fails, for an `if`.
+- `find_images(image)` returns every place the picture appears, best first and without overlaps, each with `x`, `y`,
+  `bounds` and `score`. It answers at once unless `timeout` is set, and `max` caps the count (20 by default).
+- `wait_image_gone(image)` waits until the picture leaves the screen, such as a loading spinner.
+- `find_image`, `tap_image` and the three commands above take three options:
+  - `region` searches only inside left, top, right, bottom, which is faster and keeps matches inside the box.
+  - `scales` also tries the picture at other sizes, such as `[0.8, 1, 1.25]`, for phones with another screen density.
+  - `color` also requires the average color to agree, so a red and a green button of the same shape differ.
+
 ## 0.1.10
 
 ### New

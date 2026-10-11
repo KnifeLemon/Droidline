@@ -30,7 +30,7 @@ type Options struct {
 // readOnlyTools only look at the phone. Condition commands (exists, checked, battery and the like) are read-only too.
 var readOnlyTools = map[string]bool{
 	"dump": true, "screenshot": true, "find_image": true, "ocr": true, "ocr_find": true,
-	"wait": true, "wait_gone": true, "wait_idle": true, "find": true,
+	"wait": true, "wait_gone": true, "wait_idle": true, "find": true, "wait_image_gone": true,
 	"info": true, "devices": true, "apps": true, "notifications": true, "wait_notification": true,
 }
 

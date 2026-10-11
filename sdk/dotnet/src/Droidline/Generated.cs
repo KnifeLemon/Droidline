@@ -299,6 +299,22 @@ public sealed class DeviceInfo : DroidlineObject
     public object? Leased => Get<object>("leased");
 }
 
+/// <summary>A image_match object from the server.</summary>
+public sealed class ImageMatch : DroidlineObject
+{
+    /// <summary>The x field as a plain value, or null when it is missing. Get&lt;T&gt;("x") converts it.</summary>
+    public object? X => Get<object>("x");
+
+    /// <summary>The y field as a plain value, or null when it is missing. Get&lt;T&gt;("y") converts it.</summary>
+    public object? Y => Get<object>("y");
+
+    /// <summary>The bounds field as a plain value, or null when it is missing. Get&lt;T&gt;("bounds") converts it.</summary>
+    public object? Bounds => Get<object>("bounds");
+
+    /// <summary>The score field as a plain value, or null when it is missing. Get&lt;T&gt;("score") converts it.</summary>
+    public object? Score => Get<object>("score");
+}
+
 /// <summary>A notification object from the server.</summary>
 public sealed class Notification : DroidlineObject
 {
@@ -390,6 +406,13 @@ public sealed class TapImageResult : DroidlineObject
     /// <summary>The score field of the reply.</summary>
     public double Score => Get<double>("score");
 
+    /// <summary>The ms field of the reply.</summary>
+    public int Ms => Get<int>("ms");
+}
+
+/// <summary>The reply of wait_image_gone.</summary>
+public sealed class WaitImageGoneResult : DroidlineObject
+{
     /// <summary>The ms field of the reply.</summary>
     public int Ms => Get<int>("ms");
 }
@@ -1216,39 +1239,121 @@ public partial class Device
     }
 
     /// <summary>Find a picture on the screen.</summary>
-    /// <remarks>Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.</remarks>
+    /// <remarks>Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.</remarks>
     /// <param name="image">PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.</param>
     /// <param name="threshold">How close the match must be, from 0 to 1. Default: 0.9.</param>
     /// <param name="timeout">Seconds to wait for the target to appear. Default: 10.</param>
+    /// <param name="region">Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.</param>
+    /// <param name="scales">Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.</param>
+    /// <param name="color">Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.</param>
     /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
     /// <exception cref="NotFoundException">The target did not appear in time. The current package/activity is returned in screen.</exception>
     /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
     /// <example><code>await d.FindImageAsync("ok-button.png");</code></example>
-    public async Task<FindImageResult> FindImageAsync(ImageInput image, double? threshold = null, double? timeout = null, CancellationToken cancellationToken = default)
+    public async Task<FindImageResult> FindImageAsync(ImageInput image, double? threshold = null, double? timeout = null, IEnumerable<int>? region = null, IEnumerable<double>? scales = null, bool? color = null, CancellationToken cancellationToken = default)
     {
         var msg = new Params();
         msg.Add("image", await image.ToBase64Async(cancellationToken).ConfigureAwait(false));
         msg.Opt("threshold", threshold);
         msg.Opt("timeout", timeout);
+        msg.Opt("region", region);
+        msg.Opt("scales", scales);
+        msg.Opt("color", color);
         return await RunFieldsAsync<FindImageResult>("find_image", msg, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Find a picture on the screen and tap its center.</summary>
-    /// <remarks>Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone, because another screen size or density will not match. On Android 9 and 10 screenshots need screen capture permission.</remarks>
+    /// <remarks>Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.</remarks>
     /// <param name="image">PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.</param>
     /// <param name="threshold">How close the match must be, from 0 to 1. Default: 0.9.</param>
     /// <param name="timeout">Seconds to wait for the target to appear. Default: 10.</param>
+    /// <param name="region">Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.</param>
+    /// <param name="scales">Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.</param>
+    /// <param name="color">Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.</param>
     /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
     /// <exception cref="NotFoundException">The target did not appear in time. The current package/activity is returned in screen.</exception>
     /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
     /// <example><code>await d.TapImageAsync("ok-button.png");</code></example>
-    public async Task<TapImageResult> TapImageAsync(ImageInput image, double? threshold = null, double? timeout = null, CancellationToken cancellationToken = default)
+    public async Task<TapImageResult> TapImageAsync(ImageInput image, double? threshold = null, double? timeout = null, IEnumerable<int>? region = null, IEnumerable<double>? scales = null, bool? color = null, CancellationToken cancellationToken = default)
     {
         var msg = new Params();
         msg.Add("image", await image.ToBase64Async(cancellationToken).ConfigureAwait(false));
         msg.Opt("threshold", threshold);
         msg.Opt("timeout", timeout);
+        msg.Opt("region", region);
+        msg.Opt("scales", scales);
+        msg.Opt("color", color);
         return await RunFieldsAsync<TapImageResult>("tap_image", msg, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Whether a picture is on the screen right now. Never waits.</summary>
+    /// <remarks>Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.</remarks>
+    /// <param name="image">PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.</param>
+    /// <param name="threshold">How close the match must be, from 0 to 1. Default: 0.9.</param>
+    /// <param name="region">Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.</param>
+    /// <param name="scales">Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.</param>
+    /// <param name="color">Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.ImageExistsAsync("coin.png");</code></example>
+    public async Task<bool> ImageExistsAsync(ImageInput image, double? threshold = null, IEnumerable<int>? region = null, IEnumerable<double>? scales = null, bool? color = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Add("image", await image.ToBase64Async(cancellationToken).ConfigureAwait(false));
+        msg.Opt("threshold", threshold);
+        msg.Opt("region", region);
+        msg.Opt("scales", scales);
+        msg.Opt("color", color);
+        return await RunValueAsync<bool>("image_exists", msg, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Every place a picture appears on the screen.</summary>
+    /// <remarks>Answers at once, with an empty list when nothing matches, unless timeout is set. Best matches come first and never overlap. Runs on the PC; for a phone with another screen density, pass scales.</remarks>
+    /// <param name="image">PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.</param>
+    /// <param name="threshold">How close the match must be, from 0 to 1. Default: 0.9.</param>
+    /// <param name="timeout">Seconds to wait for at least one match. 0 answers at once. Default: 0.</param>
+    /// <param name="region">Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.</param>
+    /// <param name="scales">Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.</param>
+    /// <param name="color">Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.</param>
+    /// <param name="max">Most matches to return. Default: 20.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.FindImagesAsync("coin.png");</code></example>
+    public async Task<IReadOnlyList<ImageMatch>> FindImagesAsync(ImageInput image, double? threshold = null, double? timeout = null, IEnumerable<int>? region = null, IEnumerable<double>? scales = null, bool? color = null, int? max = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Add("image", await image.ToBase64Async(cancellationToken).ConfigureAwait(false));
+        msg.Opt("threshold", threshold);
+        msg.Opt("timeout", timeout);
+        msg.Opt("region", region);
+        msg.Opt("scales", scales);
+        msg.Opt("color", color);
+        msg.Opt("max", max);
+        return await RunValueAsync<IReadOnlyList<ImageMatch>>("find_images", msg, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Wait until a picture is no longer on the screen.</summary>
+    /// <remarks>Optional, and runs on the PC: the server takes a screenshot and compares. Cut the image from a screenshot of the same phone; for a phone with another screen density, pass scales. On Android 9 and 10 screenshots need screen capture permission.</remarks>
+    /// <param name="image">PNG or JPEG of what to find, cut from a screenshot of the same phone. The SDKs and the CLI take a file path; on the wire it is base64.</param>
+    /// <param name="threshold">How close the match must be, from 0 to 1. Default: 0.9.</param>
+    /// <param name="timeout">Seconds to wait for the target to appear. Default: 10.</param>
+    /// <param name="region">Search only inside this box, given as left, top, right, bottom in screen pixels. Faster, and nothing outside it can match.</param>
+    /// <param name="scales">Sizes of the image to try, 1 being the size it was cut at, such as 0.8, 1, 1.25 for a phone with another screen density. Each size adds time.</param>
+    /// <param name="color">Also require the average color to agree, so a red and a green button of the same shape differ. Default: false.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="DroidlineTimeoutException">The action itself timed out. Safe to retry.</exception>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.WaitImageGoneAsync("loading.png");</code></example>
+    public async Task<WaitImageGoneResult> WaitImageGoneAsync(ImageInput image, double? threshold = null, double? timeout = null, IEnumerable<int>? region = null, IEnumerable<double>? scales = null, bool? color = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Add("image", await image.ToBase64Async(cancellationToken).ConfigureAwait(false));
+        msg.Opt("threshold", threshold);
+        msg.Opt("timeout", timeout);
+        msg.Opt("region", region);
+        msg.Opt("scales", scales);
+        msg.Opt("color", color);
+        return await RunFieldsAsync<WaitImageGoneResult>("wait_image_gone", msg, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Read the text on the screen with OCR.</summary>
