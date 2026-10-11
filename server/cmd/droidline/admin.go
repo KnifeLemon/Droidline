@@ -257,6 +257,7 @@ func cmdDoctor(g globals) error {
 		fmt.Println()
 	}
 	fmt.Printf("settings: %s\nsecrets:  %s\n\n", st.Dir, store.SecretBackend())
+	reserved := checkReserved(st.Config, check)
 	c, err := client.Dial(g.addr, g.token)
 	running := err == nil
 	check(running, "server answers on "+g.addr, "start it with: droidline serve")
@@ -266,7 +267,7 @@ func cmdDoctor(g globals) error {
 		if res != nil {
 			fmt.Printf("       version %v, agent port %v, language %v\n", res["version"], res["agent_port"], res["lang"])
 		}
-	} else if errors.Is(err, client.ErrNotRunning) {
+	} else if errors.Is(err, client.ErrNotRunning) && !reserved["agent"] {
 		ln, lerr := net.Listen("tcp", st.Config.Agent.Listen)
 		check(lerr == nil, "agent port "+st.Config.Agent.Listen+" is free", "another program uses it; change [agent] listen in config.toml")
 		if ln != nil {

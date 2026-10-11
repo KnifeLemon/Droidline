@@ -14,7 +14,7 @@ from ._element import Element
 from ._errors import ConnectionLostError, DroidlineError, ServerNotRunningError
 from ._generated import *  # noqa: F401,F403
 
-__version__ = "0.1.9"
+__version__ = "0.1.10"
 
 __all__ = [
     "connect",

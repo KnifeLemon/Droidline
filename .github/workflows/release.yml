@@ -126,8 +126,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Only the release files: the build record docker/build-push-action uploads is not one of them.
       - uses: actions/download-artifact@v4
         with:
+          pattern: "{binaries,apk,mcpb}"
           path: dist
           merge-multiple: true
       - name: checksums
@@ -244,6 +246,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - uses: docker/build-push-action@v6
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           file: relay/Dockerfile

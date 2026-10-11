@@ -6,6 +6,20 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.10
+
+### New
+
+- On Windows, `droidline doctor` checks whether the agent, client and discovery ports fall in a range Windows keeps
+  for itself, which often happens with Hyper-V, WSL or Docker. A port there cannot be opened even though nothing uses
+  it. Doctor names the range and suggests a free port to put in `config.toml`.
+
+### Fixes
+
+- Doctor no longer says "another program uses it" for an agent port that Windows has reserved.
+- The release workflow downloads only the release files, so a Docker build record can no longer stop the GitHub
+  release from being published.
+
 ## 0.1.9
 
 ### Fixes
