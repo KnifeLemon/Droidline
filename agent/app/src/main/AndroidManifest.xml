@@ -17,9 +17,17 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Only for the optional sms, calls and contacts commands. Asked for on the Setup tab, never on its own. -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <uses-feature
         android:name="android.hardware.camera"
+        android:required="false" />
+    <!-- READ_SMS would otherwise make telephony required and hide the app from tablets. -->
+    <uses-feature
+        android:name="android.hardware.telephony"
         android:required="false" />
 
     <application

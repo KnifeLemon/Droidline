@@ -206,7 +206,7 @@ After the handshake every line is:
 The phone's first encrypted line:
 
 ```json
-{"event":"hello","device":"a1b2c3d4","boot":"7f3a9c","model":"SM-S921N","manufacturer":"samsung","sdk":34,"release":"14","agent":"0.1.0","route":"lan","lang":"ko","ready":{"a11y":true,"ime":true,"vpn":false,"notif":true,"capture":true}}
+{"event":"hello","device":"a1b2c3d4","boot":"7f3a9c","model":"SM-S921N","manufacturer":"samsung","sdk":34,"release":"14","agent":"0.1.0","route":"lan","lang":"ko","ready":{"a11y":true,"ime":true,"vpn":false,"notif":true,"capture":true,"sms":false,"calls":false,"contacts":false}}
 ```
 
 `boot` is random per agent process start. The server replies:

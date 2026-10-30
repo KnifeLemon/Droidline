@@ -5,7 +5,10 @@ import dev.droidline.agent.Agent
 import dev.droidline.agent.a11y.Recorder
 import dev.droidline.agent.a11y.UiCommands
 import dev.droidline.agent.device.Capture
+import dev.droidline.agent.device.Calls
+import dev.droidline.agent.device.Contacts
 import dev.droidline.agent.device.DeviceCommands
+import dev.droidline.agent.device.Sms
 import dev.droidline.agent.link.CommandCache
 import dev.droidline.agent.notif.DroidNotificationListener
 import dev.droidline.agent.store.toStringList
@@ -120,6 +123,9 @@ class CommandRunner(private val ctx: Context, private val scope: CoroutineScope)
         }
         if ("a11y" in c.requires) UiCommands.svc()
         if ("notif" in c.requires && DroidNotificationListener.instance == null) throw CmdError.noPermission("notif")
+        if ("sms" in c.requires && !Sms.granted(ctx)) throw CmdError.noPermission("sms")
+        if ("calls" in c.requires && !Calls.granted(ctx)) throw CmdError.noPermission("calls")
+        if ("contacts" in c.requires && !Contacts.granted(ctx)) throw CmdError.noPermission("contacts")
     }
 
     private fun releaseFor(sdk: Int) = when (sdk) {
@@ -200,6 +206,9 @@ class CommandRunner(private val ctx: Context, private val scope: CoroutineScope)
             "notification_click" -> { DroidNotificationListener.click(str(name, p, "key")); JSONObject() }
             "notification_dismiss" -> { DroidNotificationListener.dismiss(str(name, p, "key")); JSONObject() }
             "notify_filter" -> notifyFilter(p)
+            "sms" -> Sms.read(ctx, p)
+            "calls" -> Calls.read(ctx, p)
+            "contacts" -> Contacts.read(ctx, p)
             else -> throw CmdError("UNKNOWN_CMD", mapOf("cmd" to name, "agent" to Agent.version))
         }
     }

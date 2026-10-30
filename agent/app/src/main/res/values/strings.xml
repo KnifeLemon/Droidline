@@ -41,6 +41,9 @@
 
     <string name="vpn_title">VPN permission</string>
     <string name="vpn_desc">Only needed for the per-app proxy command.</string>
+    <string name="sms_title">SMS</string>
+    <string name="sms_desc">Only needed for the sms command, which lets the PC read the text messages stored on this phone. Leave it off if you do not use it.</string>
+    <string name="sms_off_note">To turn it off, open App info and remove the SMS permission.</string>
 
     <string name="pair_intro">Pair this phone with the PC that runs droidline serve.</string>
     <string name="pair_replace_note">This phone is paired with %1$s. Pairing again replaces it.</string>
@@ -80,6 +83,15 @@
     <string name="ready_notif">Notification access</string>
     <string name="ready_capture">Screen capture</string>
     <string name="ready_vpn">VPN</string>
+    <string name="ready_sms">SMS</string>
+    <string name="calls_title">Call history</string>
+    <string name="calls_desc">Only needed for the calls command, which lets the PC read this phone\'s call history. Leave it off if you do not use it.</string>
+    <string name="calls_off_note">To turn it off, open App info and remove the Call logs permission.</string>
+    <string name="contacts_title">Contacts</string>
+    <string name="contacts_desc">Only needed for the contacts command, which lets the PC read the contacts saved on this phone. Leave it off if you do not use it.</string>
+    <string name="contacts_off_note">To turn it off, open App info and remove the Contacts permission.</string>
+    <string name="ready_calls">Call history</string>
+    <string name="ready_contacts">Contacts</string>
     <string name="btn_reconnect">Reconnect</string>
     <string name="btn_unpair">Unpair</string>
     <string name="unpair_confirm">Unpair from %1$s? To use this phone again, you will need to pair it again.</string>

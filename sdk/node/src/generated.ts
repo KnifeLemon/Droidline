@@ -138,6 +138,35 @@ export interface App {
   [field: string]: any;
 }
 
+export interface Sms {
+  id?: any;
+  address?: any;
+  text?: any;
+  time?: any;
+  box?: any;
+  read?: any;
+  mms?: any;
+  [field: string]: any;
+}
+
+export interface Call {
+  id?: any;
+  number?: any;
+  name?: any;
+  type?: any;
+  time?: any;
+  duration?: any;
+  [field: string]: any;
+}
+
+export interface Contact {
+  id?: any;
+  name?: any;
+  numbers?: any;
+  emails?: any;
+  [field: string]: any;
+}
+
 /** Error codes the server can answer with, from spec/commands.json. */
 export type ErrorCode =
   | "NOT_FOUND"
@@ -679,6 +708,37 @@ export interface WaitNotificationOptions {
 export interface NotifyFilterOptions {
   /** Allowed packages. Omit to read the current list. */
   packages?: ReadonlyArray<string>;
+}
+
+export interface SmsOptions {
+  /** Received, sent, or both. @default "inbox" */
+  box?: "inbox" | "sent" | "all";
+  /** Only messages whose number or sender contains this. Spaces and dashes are ignored. */
+  address?: string;
+  /** Only messages whose text contains this, ignoring case. */
+  contains?: string;
+  /** Only messages from the last this many seconds. 0 means any time. @default 0 */
+  within?: number;
+  /** Most messages to return, up to 500. @default 20 */
+  max?: number;
+}
+
+export interface CallsOptions {
+  /** Which calls. @default "all" */
+  type?: "all" | "incoming" | "outgoing" | "missed" | "rejected" | "blocked";
+  /** Only calls whose number or saved name contains this. Spaces and dashes are ignored. */
+  number?: string;
+  /** Only calls from the last this many seconds. 0 means any time. @default 0 */
+  within?: number;
+  /** Most calls to return, up to 500. @default 20 */
+  max?: number;
+}
+
+export interface ContactsOptions {
+  /** Only contacts whose name, number or email contains this, ignoring case. Spaces and dashes in numbers are ignored. */
+  query?: string;
+  /** Most contacts to return, up to 500. @default 50 */
+  max?: number;
 }
 
 export interface ChromeGoOptions {
@@ -4768,6 +4828,200 @@ export abstract class DeviceCommands {
   notifyFilter(packages?: ReadonlyArray<string>, opts?: NotifyFilterOptions): Promise<Array<string>>;
   async notifyFilter(...args: unknown[]): Promise<Array<string>> {
     return this._run("notify_filter", "value", collect("notify_filter", args, [], ["packages"]));
+  }
+
+  /**
+   * Text messages stored on the phone, newest first.
+   *
+   * Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.
+   *
+   * @param box Received, sent, or both. Default: "inbox".
+   * @param address Only messages whose number or sender contains this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param within Only messages from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most messages to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see SmsOptions.
+   * @example await d.sms({ contains: "인증번호", within: 300, max: 1 })
+   */
+  sms(opts?: SmsOptions): Promise<Array<Sms>>;
+  /**
+   * Text messages stored on the phone, newest first.
+   *
+   * Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.
+   *
+   * @param box Received, sent, or both. Default: "inbox".
+   * @param address Only messages whose number or sender contains this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param within Only messages from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most messages to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see SmsOptions.
+   * @example await d.sms({ contains: "인증번호", within: 300, max: 1 })
+   */
+  sms(box?: "inbox" | "sent" | "all", opts?: SmsOptions): Promise<Array<Sms>>;
+  /**
+   * Text messages stored on the phone, newest first.
+   *
+   * Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.
+   *
+   * @param box Received, sent, or both. Default: "inbox".
+   * @param address Only messages whose number or sender contains this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param within Only messages from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most messages to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see SmsOptions.
+   * @example await d.sms({ contains: "인증번호", within: 300, max: 1 })
+   */
+  sms(box?: "inbox" | "sent" | "all", address?: string, opts?: SmsOptions): Promise<Array<Sms>>;
+  /**
+   * Text messages stored on the phone, newest first.
+   *
+   * Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.
+   *
+   * @param box Received, sent, or both. Default: "inbox".
+   * @param address Only messages whose number or sender contains this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param within Only messages from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most messages to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see SmsOptions.
+   * @example await d.sms({ contains: "인증번호", within: 300, max: 1 })
+   */
+  sms(box?: "inbox" | "sent" | "all", address?: string, contains?: string, opts?: SmsOptions): Promise<Array<Sms>>;
+  /**
+   * Text messages stored on the phone, newest first.
+   *
+   * Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.
+   *
+   * @param box Received, sent, or both. Default: "inbox".
+   * @param address Only messages whose number or sender contains this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param within Only messages from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most messages to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see SmsOptions.
+   * @example await d.sms({ contains: "인증번호", within: 300, max: 1 })
+   */
+  sms(box?: "inbox" | "sent" | "all", address?: string, contains?: string, within?: number, opts?: SmsOptions): Promise<Array<Sms>>;
+  /**
+   * Text messages stored on the phone, newest first.
+   *
+   * Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.
+   *
+   * @param box Received, sent, or both. Default: "inbox".
+   * @param address Only messages whose number or sender contains this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param within Only messages from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most messages to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see SmsOptions.
+   * @example await d.sms({ contains: "인증번호", within: 300, max: 1 })
+   */
+  sms(box?: "inbox" | "sent" | "all", address?: string, contains?: string, within?: number, max?: number, opts?: SmsOptions): Promise<Array<Sms>>;
+  async sms(...args: unknown[]): Promise<Array<Sms>> {
+    return this._run("sms", "value", collect("sms", args, [], ["box", "address", "contains", "within", "max"]));
+  }
+
+  /**
+   * Call history, newest first.
+   *
+   * Optional. Allow call history on the app's Setup tab first; until then the answer is NO_PERMISSION. Only calls made through the phone app are listed; calls inside apps such as messengers usually are not. The MCP server lists this tool only when --tools names it.
+   *
+   * @param type Which calls. Default: "all".
+   * @param number Only calls whose number or saved name contains this. Spaces and dashes are ignored.
+   * @param within Only calls from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most calls to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see CallsOptions.
+   * @example await d.calls({ type: "missed", within: 3600 })
+   */
+  calls(opts?: CallsOptions): Promise<Array<Call>>;
+  /**
+   * Call history, newest first.
+   *
+   * Optional. Allow call history on the app's Setup tab first; until then the answer is NO_PERMISSION. Only calls made through the phone app are listed; calls inside apps such as messengers usually are not. The MCP server lists this tool only when --tools names it.
+   *
+   * @param type Which calls. Default: "all".
+   * @param number Only calls whose number or saved name contains this. Spaces and dashes are ignored.
+   * @param within Only calls from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most calls to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see CallsOptions.
+   * @example await d.calls({ type: "missed", within: 3600 })
+   */
+  calls(type?: "all" | "incoming" | "outgoing" | "missed" | "rejected" | "blocked", opts?: CallsOptions): Promise<Array<Call>>;
+  /**
+   * Call history, newest first.
+   *
+   * Optional. Allow call history on the app's Setup tab first; until then the answer is NO_PERMISSION. Only calls made through the phone app are listed; calls inside apps such as messengers usually are not. The MCP server lists this tool only when --tools names it.
+   *
+   * @param type Which calls. Default: "all".
+   * @param number Only calls whose number or saved name contains this. Spaces and dashes are ignored.
+   * @param within Only calls from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most calls to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see CallsOptions.
+   * @example await d.calls({ type: "missed", within: 3600 })
+   */
+  calls(type?: "all" | "incoming" | "outgoing" | "missed" | "rejected" | "blocked", number?: string, opts?: CallsOptions): Promise<Array<Call>>;
+  /**
+   * Call history, newest first.
+   *
+   * Optional. Allow call history on the app's Setup tab first; until then the answer is NO_PERMISSION. Only calls made through the phone app are listed; calls inside apps such as messengers usually are not. The MCP server lists this tool only when --tools names it.
+   *
+   * @param type Which calls. Default: "all".
+   * @param number Only calls whose number or saved name contains this. Spaces and dashes are ignored.
+   * @param within Only calls from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most calls to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see CallsOptions.
+   * @example await d.calls({ type: "missed", within: 3600 })
+   */
+  calls(type?: "all" | "incoming" | "outgoing" | "missed" | "rejected" | "blocked", number?: string, within?: number, opts?: CallsOptions): Promise<Array<Call>>;
+  /**
+   * Call history, newest first.
+   *
+   * Optional. Allow call history on the app's Setup tab first; until then the answer is NO_PERMISSION. Only calls made through the phone app are listed; calls inside apps such as messengers usually are not. The MCP server lists this tool only when --tools names it.
+   *
+   * @param type Which calls. Default: "all".
+   * @param number Only calls whose number or saved name contains this. Spaces and dashes are ignored.
+   * @param within Only calls from the last this many seconds. 0 means any time. Default: 0.
+   * @param max Most calls to return, up to 500. Default: 20.
+   * @param opts Optional parameters by name, see CallsOptions.
+   * @example await d.calls({ type: "missed", within: 3600 })
+   */
+  calls(type?: "all" | "incoming" | "outgoing" | "missed" | "rejected" | "blocked", number?: string, within?: number, max?: number, opts?: CallsOptions): Promise<Array<Call>>;
+  async calls(...args: unknown[]): Promise<Array<Call>> {
+    return this._run("calls", "value", collect("calls", args, [], ["type", "number", "within", "max"]));
+  }
+
+  /**
+   * Contacts saved on the phone, by name.
+   *
+   * Optional. Allow contacts on the app's Setup tab first; until then the answer is NO_PERMISSION. The MCP server lists this tool only when --tools names it.
+   *
+   * @param query Only contacts whose name, number or email contains this, ignoring case. Spaces and dashes in numbers are ignored.
+   * @param max Most contacts to return, up to 500. Default: 50.
+   * @param opts Optional parameters by name, see ContactsOptions.
+   * @example await d.contacts("Kim")
+   */
+  contacts(opts?: ContactsOptions): Promise<Array<Contact>>;
+  /**
+   * Contacts saved on the phone, by name.
+   *
+   * Optional. Allow contacts on the app's Setup tab first; until then the answer is NO_PERMISSION. The MCP server lists this tool only when --tools names it.
+   *
+   * @param query Only contacts whose name, number or email contains this, ignoring case. Spaces and dashes in numbers are ignored.
+   * @param max Most contacts to return, up to 500. Default: 50.
+   * @param opts Optional parameters by name, see ContactsOptions.
+   * @example await d.contacts("Kim")
+   */
+  contacts(query?: string, opts?: ContactsOptions): Promise<Array<Contact>>;
+  /**
+   * Contacts saved on the phone, by name.
+   *
+   * Optional. Allow contacts on the app's Setup tab first; until then the answer is NO_PERMISSION. The MCP server lists this tool only when --tools names it.
+   *
+   * @param query Only contacts whose name, number or email contains this, ignoring case. Spaces and dashes in numbers are ignored.
+   * @param max Most contacts to return, up to 500. Default: 50.
+   * @param opts Optional parameters by name, see ContactsOptions.
+   * @example await d.contacts("Kim")
+   */
+  contacts(query?: string, max?: number, opts?: ContactsOptions): Promise<Array<Contact>>;
+  async contacts(...args: unknown[]): Promise<Array<Contact>> {
+    return this._run("contacts", "value", collect("contacts", args, [], ["query", "max"]));
   }
 }
 

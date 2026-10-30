@@ -22,7 +22,7 @@ import (
 type Options struct {
 	Addr, Token, Device, Home string
 	// Tools, when set, are the only tools listed and callable. ReadOnly keeps only the tools that never act on the
-	// phone. Both are off by default; with both, a tool must pass each.
+	// phone. Both are off by default; with both, a tool must pass each. Opt-in tools (sms, calls, contacts) need Tools to name them.
 	Tools    []string
 	ReadOnly bool
 }
@@ -32,6 +32,7 @@ var readOnlyTools = map[string]bool{
 	"dump": true, "screenshot": true, "find_image": true, "ocr": true, "ocr_find": true,
 	"wait": true, "wait_gone": true, "wait_idle": true, "find": true, "wait_image_gone": true,
 	"info": true, "devices": true, "apps": true, "notifications": true, "wait_notification": true,
+	"sms": true, "calls": true, "contacts": true,
 }
 
 func isReadOnly(c *spec.Command) bool { return c.Condition || readOnlyTools[c.Name] }
@@ -60,7 +61,7 @@ func allowed(sp *spec.Spec, o Options) (map[string]bool, error) {
 	}
 	out := map[string]bool{}
 	for _, c := range sp.Commands {
-		if !c.InMCP() || (only != nil && !only[c.Name]) || (o.ReadOnly && !isReadOnly(c)) {
+		if !c.InMCP() || (only != nil && !only[c.Name]) || (only == nil && c.MCPOptIn) || (o.ReadOnly && !isReadOnly(c)) {
 			continue
 		}
 		out[c.Name] = true
@@ -320,7 +321,14 @@ func (s *session) callTool(name string, args map[string]any) map[string]any {
 		}
 	}
 	if !s.allow[cmdName] {
-		return textResult("tool not allowed: "+name+" is not in this server's --tools or --read-only set", true)
+		return textResult(s.refusal(name, cmdName), true)
+	}
+	if cmdName == "batch" {
+		for _, step := range s.stepNames(args["steps"]) {
+			if step != "sleep" && !s.allow[step] {
+				return textResult(s.refusal("batch step "+step, step), true)
+			}
+		}
 	}
 	req := map[string]any{"cmd": cmdName}
 	for k, v := range args {
@@ -358,6 +366,36 @@ func (s *session) callTool(name string, args map[string]any) map[string]any {
 	}
 	b, _ := json.Marshal(res)
 	return textResult(string(b), false)
+}
+
+func (s *session) refusal(what, cmdName string) string {
+	if c, _ := s.sp.Command(cmdName); c != nil && c.MCPOptIn {
+		return "tool not allowed: " + what + " is opt-in. Start the MCP server with --tools naming it to use it"
+	}
+	return "tool not allowed: " + what + " is not in this server's --tools or --read-only set"
+}
+
+// stepNames reads the command of each batch step, written as [cmd, args...] or {"cmd": ...}, with aliases resolved.
+func (s *session) stepNames(steps any) []string {
+	list, _ := steps.([]any)
+	var out []string
+	for _, st := range list {
+		var name any
+		switch t := st.(type) {
+		case []any:
+			if len(t) > 0 {
+				name = t[0]
+			}
+		case map[string]any:
+			name = t["cmd"]
+		}
+		n, _ := name.(string)
+		if c, _ := s.sp.Command(n); c != nil {
+			n = c.Name
+		}
+		out = append(out, n)
+	}
+	return out
 }
 
 func textResult(text string, isErr bool) map[string]any {

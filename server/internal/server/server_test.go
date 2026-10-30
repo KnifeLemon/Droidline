@@ -273,6 +273,59 @@ func TestNotifications(t *testing.T) {
 	}
 }
 
+func TestSMS(t *testing.T) {
+	r := newRig(t)
+	r.pairByCode()
+	count := func(req map[string]any) int {
+		req["cmd"] = "sms"
+		return len(r.mustOK(req)["value"].([]any))
+	}
+	if n := count(map[string]any{}); n != 2 {
+		t.Fatalf("inbox gave %d", n)
+	}
+	if n := count(map[string]any{"box": "all", "address": "1234 5678"}); n != 2 {
+		t.Fatalf("address gave %d", n)
+	}
+	if n := count(map[string]any{"contains": "CODE", "within": 300}); n != 1 {
+		t.Fatalf("code in 5 minutes gave %d", n)
+	}
+	if n := count(map[string]any{"box": "all", "max": 1}); n != 1 {
+		t.Fatalf("max 1 gave %d", n)
+	}
+	if res := r.call(map[string]any{"cmd": "sms", "box": "trash"}); res["error"] != "BAD_ARGS" {
+		t.Fatalf("bad box %v", res)
+	}
+}
+
+func TestCallsAndContacts(t *testing.T) {
+	r := newRig(t)
+	r.pairByCode()
+	count := func(req map[string]any) int {
+		return len(r.mustOK(req)["value"].([]any))
+	}
+	if n := count(map[string]any{"cmd": "calls"}); n != 3 {
+		t.Fatalf("calls gave %d", n)
+	}
+	if n := count(map[string]any{"cmd": "calls", "type": "missed", "within": 600}); n != 1 {
+		t.Fatalf("missed in 10 minutes gave %d", n)
+	}
+	if n := count(map[string]any{"cmd": "calls", "number": "minji"}); n != 2 {
+		t.Fatalf("by name gave %d", n)
+	}
+	if res := r.call(map[string]any{"cmd": "calls", "type": "busy"}); res["error"] != "BAD_ARGS" {
+		t.Fatalf("bad type %v", res)
+	}
+	if n := count(map[string]any{"cmd": "contacts"}); n != 2 {
+		t.Fatalf("contacts gave %d", n)
+	}
+	if n := count(map[string]any{"cmd": "contacts", "query": "010 1234"}); n != 1 {
+		t.Fatalf("by number gave %d", n)
+	}
+	if n := count(map[string]any{"cmd": "contacts", "query": "EXAMPLE.com"}); n != 1 {
+		t.Fatalf("by email gave %d", n)
+	}
+}
+
 func TestPairByQR(t *testing.T) {
 	r := newRig(t)
 	uri := r.mustOK(map[string]any{"cmd": "pair_qr", "name": "qr-phone"})["uri"].(string)

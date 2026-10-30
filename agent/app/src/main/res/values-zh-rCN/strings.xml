@@ -38,6 +38,9 @@
 
     <string name="vpn_title">VPN 权限</string>
     <string name="vpn_desc">仅用于按应用代理命令。</string>
+    <string name="sms_title">短信</string>
+    <string name="sms_desc">仅用于 sms 命令，让电脑读取这台手机上存储的短信。用不到就保持关闭。</string>
+    <string name="sms_off_note">要关闭，请在应用信息中撤销短信权限。</string>
 
     <string name="pair_intro">将此手机与运行 droidline serve 的电脑配对。</string>
     <string name="pair_replace_note">此手机已与 %1$s 配对。重新配对会替换为新的电脑。</string>
@@ -77,6 +80,15 @@
     <string name="ready_notif">通知使用权</string>
     <string name="ready_capture">屏幕截图</string>
     <string name="ready_vpn">VPN</string>
+    <string name="ready_sms">短信</string>
+    <string name="calls_title">通话记录</string>
+    <string name="calls_desc">仅用于 calls 命令，让电脑读取这台手机的通话记录。用不到就保持关闭。</string>
+    <string name="calls_off_note">要关闭，请在应用信息中撤销通话记录权限。</string>
+    <string name="contacts_title">联系人</string>
+    <string name="contacts_desc">仅用于 contacts 命令，让电脑读取这台手机上保存的联系人。用不到就保持关闭。</string>
+    <string name="contacts_off_note">要关闭，请在应用信息中撤销联系人权限。</string>
+    <string name="ready_calls">通话记录</string>
+    <string name="ready_contacts">联系人</string>
     <string name="btn_reconnect">重新连接</string>
     <string name="btn_unpair">取消配对</string>
     <string name="unpair_confirm">要取消与 %1$s 的配对吗？之后要使用这台手机，需要重新配对。</string>

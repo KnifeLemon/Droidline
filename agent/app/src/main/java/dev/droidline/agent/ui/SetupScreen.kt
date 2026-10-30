@@ -3,6 +3,7 @@ package dev.droidline.agent.ui
 import android.Manifest
 import android.net.VpnService
 import android.os.Build
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -127,7 +128,34 @@ fun SetupScreen(tick: Int) {
                 if (intent != null) vpnConsent.launch(intent) else Agent.refreshReady()
             }) { Text(stringResource(R.string.btn_grant)) }
         }
+        DataCard(R.string.sms_title, R.string.sms_desc, R.string.sms_off_note, Manifest.permission.READ_SMS, ready.sms) { localTick++ }
+        DataCard(R.string.calls_title, R.string.calls_desc, R.string.calls_off_note, Manifest.permission.READ_CALL_LOG, ready.calls) { localTick++ }
+        DataCard(R.string.contacts_title, R.string.contacts_desc, R.string.contacts_off_note, Manifest.permission.READ_CONTACTS, ready.contacts) { localTick++ }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+/** An optional permission for reading personal data, asked for only when the user taps Allow. */
+@Composable
+private fun DataCard(title: Int, body: Int, offNote: Int, permission: String, on: Boolean, changed: () -> Unit) {
+    val ctx = LocalContext.current
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        // After "Don't ask again" the dialog no longer shows, so send the user to App info instead.
+        val activity = ctx as? ComponentActivity
+        if (!granted && activity != null && !activity.shouldShowRequestPermissionRationale(permission)) {
+            SystemScreens.appInfo(ctx)
+        }
+        Agent.refreshReady()
+        changed()
+    }
+    StepCard(
+        title = stringResource(title),
+        body = stringResource(body),
+        state = if (on) StepState.ON else StepState.OPTIONAL,
+        note = if (on) stringResource(offNote) else null,
+    ) {
+        if (!on) OutlinedButton(onClick = { ask.launch(permission) }) { Text(stringResource(R.string.btn_allow)) }
+        else OutlinedButton(onClick = { SystemScreens.appInfo(ctx) }) { Text(stringResource(R.string.btn_app_info)) }
     }
 }
 

@@ -113,6 +113,95 @@ func (u *phoneUI) addNotification(n map[string]any) {
 	u.mu.Unlock()
 }
 
+// fakeSMS filters three made-up messages by the same rules as the app.
+func fakeSMS(m map[string]any) []map[string]any {
+	now := time.Now().UnixMilli()
+	all := []map[string]any{
+		{"id": 3, "address": "1588-0000", "text": "[Bank] Your code is 4821", "time": now - 60_000, "box": "inbox", "read": false, "mms": false},
+		{"id": 2, "address": "+82 10-1234-5678", "text": "Running late, see you at 7", "time": now - 3_600_000, "box": "sent", "read": true, "mms": false},
+		{"id": 1, "address": "+82 10-1234-5678", "text": "Dinner tonight?", "time": now - 7_200_000, "box": "inbox", "read": true, "mms": false},
+	}
+	clean := strings.NewReplacer(" ", "", "-", "")
+	box := str(m, "box")
+	addr := clean.Replace(str(m, "address"))
+	text := strings.ToLower(str(m, "contains"))
+	within := num(m, "within", 0)
+	limit := int(num(m, "max", 20))
+	out := []map[string]any{}
+	for _, s := range all {
+		switch {
+		case box != "all" && s["box"] != box,
+			addr != "" && !strings.Contains(clean.Replace(s["address"].(string)), addr),
+			text != "" && !strings.Contains(strings.ToLower(s["text"].(string)), text),
+			within > 0 && s["time"].(int64) < now-int64(within*1000):
+			continue
+		}
+		if len(out) == limit {
+			break
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// fakeCalls filters three made-up calls by the same rules as the app.
+func fakeCalls(m map[string]any) []map[string]any {
+	now := time.Now().UnixMilli()
+	all := []map[string]any{
+		{"id": 3, "number": "01012345678", "name": "Minji", "type": "missed", "time": now - 120_000, "duration": 0},
+		{"id": 2, "number": "15880000", "name": "", "type": "incoming", "time": now - 3_600_000, "duration": 42},
+		{"id": 1, "number": "01012345678", "name": "Minji", "type": "outgoing", "time": now - 86_400_000, "duration": 310},
+	}
+	clean := strings.NewReplacer(" ", "", "-", "")
+	typ := str(m, "type")
+	want := strings.ToLower(clean.Replace(str(m, "number")))
+	within := num(m, "within", 0)
+	limit := int(num(m, "max", 20))
+	out := []map[string]any{}
+	for _, c := range all {
+		switch {
+		case typ != "all" && c["type"] != typ,
+			want != "" && !strings.Contains(c["number"].(string), want) && !strings.Contains(strings.ToLower(c["name"].(string)), want),
+			within > 0 && c["time"].(int64) < now-int64(within*1000):
+			continue
+		}
+		if len(out) == limit {
+			break
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// fakeContacts filters two made-up contacts by the same rules as the app.
+func fakeContacts(m map[string]any) []map[string]any {
+	all := []map[string]any{
+		{"id": 1, "name": "Minji Kim", "numbers": []any{"010-1234-5678"}, "emails": []any{"minji@example.com"}},
+		{"id": 2, "name": "Support", "numbers": []any{"1588-0000"}, "emails": []any{}},
+	}
+	clean := strings.NewReplacer(" ", "", "-", "")
+	q := strings.ToLower(str(m, "query"))
+	limit := int(num(m, "max", 50))
+	out := []map[string]any{}
+	for _, c := range all {
+		hit := q == "" || strings.Contains(strings.ToLower(c["name"].(string)), q)
+		for _, e := range c["emails"].([]any) {
+			hit = hit || strings.Contains(strings.ToLower(e.(string)), q)
+		}
+		for _, n := range c["numbers"].([]any) {
+			hit = hit || (clean.Replace(q) != "" && strings.Contains(clean.Replace(n.(string)), clean.Replace(q)))
+		}
+		if !hit {
+			continue
+		}
+		if len(out) == limit {
+			break
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
 // pick returns the nodes a selector matches, by the same rules as the phone (spec/query.go).
 func (u *phoneUI) pick(by any, value string) []*node {
 	ns := u.nodes()
@@ -451,6 +540,12 @@ func (u *phoneUI) run(a *Agent, name string, m map[string]any) map[string]any {
 			}
 		}
 		return ok("value", out)
+	case "sms":
+		return ok("value", fakeSMS(m))
+	case "calls":
+		return ok("value", fakeCalls(m))
+	case "contacts":
+		return ok("value", fakeContacts(m))
 	case "has_notification":
 		match := notifMatch(str(m, "by"), str(m, "value"))
 		for _, n := range u.notifs {

@@ -38,6 +38,9 @@
 
     <string name="vpn_title">VPN 권한</string>
     <string name="vpn_desc">앱별 프록시 명령에만 필요합니다.</string>
+    <string name="sms_title">문자</string>
+    <string name="sms_desc">PC가 이 폰에 저장된 문자를 읽는 sms 명령에만 필요합니다. 쓰지 않으면 꺼 두세요.</string>
+    <string name="sms_off_note">끄려면 앱 정보에서 문자 권한을 해제하세요.</string>
 
     <string name="pair_intro">droidline serve를 실행 중인 PC와 이 폰을 페어링합니다.</string>
     <string name="pair_replace_note">이 폰은 %1$s와 페어링되어 있습니다. 다시 페어링하면 새 PC로 바뀝니다.</string>
@@ -77,6 +80,15 @@
     <string name="ready_notif">알림 접근</string>
     <string name="ready_capture">화면 캡처</string>
     <string name="ready_vpn">VPN</string>
+    <string name="ready_sms">문자</string>
+    <string name="calls_title">통화 기록</string>
+    <string name="calls_desc">PC가 이 폰의 통화 기록을 읽는 calls 명령에만 필요합니다. 쓰지 않으면 꺼 두세요.</string>
+    <string name="calls_off_note">끄려면 앱 정보에서 통화 기록 권한을 해제하세요.</string>
+    <string name="contacts_title">연락처</string>
+    <string name="contacts_desc">PC가 이 폰에 저장된 연락처를 읽는 contacts 명령에만 필요합니다. 쓰지 않으면 꺼 두세요.</string>
+    <string name="contacts_off_note">끄려면 앱 정보에서 연락처 권한을 해제하세요.</string>
+    <string name="ready_calls">통화 기록</string>
+    <string name="ready_contacts">연락처</string>
     <string name="btn_reconnect">다시 연결</string>
     <string name="btn_unpair">페어링 해제</string>
     <string name="unpair_confirm">%1$s와의 페어링을 해제할까요? 이 폰을 다시 쓰려면 페어링을 다시 해야 합니다.</string>

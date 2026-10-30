@@ -6,6 +6,27 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.12
+
+### New, optional
+
+- `sms` reads the text messages stored on the phone, newest first, with `box` (`inbox`, `sent` or `all`),
+  `address`, `contains`, `within` (seconds) and `max`. Each message has `address`, `text`, `time`, `box`, `read` and
+  `mms`. It covers SMS and the text of MMS. Chat (RCS) messages stay inside the messaging app and are not included.
+- `calls` reads the call history, newest first, with `type` (`all`, `incoming`, `outgoing`, `missed`, `rejected`,
+  `blocked`), `number`, `within` and `max`. Each call has `number`, `name`, `type`, `time` and `duration`. Only calls
+  made through the phone app are listed.
+- `contacts` reads saved contacts sorted by name, each with `name`, `numbers` and `emails`. `query` matches the
+  name, a number or an email.
+- Each one is off until you tap **Allow** on its card (**SMS**, **Call history**, **Contacts**) on the app's Setup tab.
+  Before that the answer is `NO_PERMISSION`. The `MISSING` column of `droidline devices` does not list them.
+- `droidline mcp` leaves all three out unless `--tools` names them, also with `--read-only`.
+
+### Changed
+
+- `droidline mcp` now checks the steps of a `batch` against `--tools` and `--read-only` too, so `batch` can no
+  longer run a tool the agent was not given.
+
 ## 0.1.11
 
 ### New, all optional

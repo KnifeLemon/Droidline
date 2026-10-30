@@ -122,6 +122,44 @@ Notification = TypedDict(
 
 App = TypedDict("App", {"package": Any, "label": Any, "version": Any, "system": Any}, total=False)
 
+Sms = TypedDict(
+    "Sms",
+    {
+        "id": Any,
+        "address": Any,
+        "text": Any,
+        "time": Any,
+        "box": Any,
+        "read": Any,
+        "mms": Any,
+    },
+    total=False,
+)
+
+Call = TypedDict(
+    "Call",
+    {
+        "id": Any,
+        "number": Any,
+        "name": Any,
+        "type": Any,
+        "time": Any,
+        "duration": Any,
+    },
+    total=False,
+)
+
+Contact = TypedDict(
+    "Contact",
+    {
+        "id": Any,
+        "name": Any,
+        "numbers": Any,
+        "emails": Any,
+    },
+    total=False,
+)
+
 DumpResult = TypedDict(
     "DumpResult",
     {
@@ -1855,6 +1893,83 @@ class DeviceCommands:
         """
         return cast("List[str]", self._run("notify_filter", "value", {}, packages=packages))
 
+    def sms(
+        self,
+        box: Optional[Literal["inbox", "sent", "all"]] = None,
+        address: Optional[str] = None,
+        contains: Optional[str] = None,
+        within: Optional[float] = None,
+        max: Optional[int] = None,
+    ) -> List[Sms]:
+        """Text messages stored on the phone, newest first.
+
+        Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            box: Received, sent, or both. Default: "inbox".
+            address: Only messages whose number or sender contains this. Spaces and dashes are ignored.
+            contains: Only messages whose text contains this, ignoring case.
+            within: Only messages from the last this many seconds. 0 means any time. Default: 0.
+            max: Most messages to return, up to 500. Default: 20.
+
+        Example:
+            d.sms(contains="인증번호", within=300, max=1)
+        """
+        return cast("List[Sms]", self._run(
+            "sms",
+            "value",
+            {},
+            box=box,
+            address=address,
+            contains=contains,
+            within=within,
+            max=max,
+        ))
+
+    def calls(
+        self,
+        type: Optional[Literal["all", "incoming", "outgoing", "missed", "rejected", "blocked"]] = None,
+        number: Optional[str] = None,
+        within: Optional[float] = None,
+        max: Optional[int] = None,
+    ) -> List[Call]:
+        """Call history, newest first.
+
+        Optional. Allow call history on the app's Setup tab first; until then the answer is NO_PERMISSION. Only calls made through the phone app are listed; calls inside apps such as messengers usually are not. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            type: Which calls. Default: "all".
+            number: Only calls whose number or saved name contains this. Spaces and dashes are ignored.
+            within: Only calls from the last this many seconds. 0 means any time. Default: 0.
+            max: Most calls to return, up to 500. Default: 20.
+
+        Example:
+            d.calls(type="missed", within=3600)
+        """
+        return cast("List[Call]", self._run(
+            "calls",
+            "value",
+            {},
+            type=type,
+            number=number,
+            within=within,
+            max=max,
+        ))
+
+    def contacts(self, query: Optional[str] = None, max: Optional[int] = None) -> List[Contact]:
+        """Contacts saved on the phone, by name.
+
+        Optional. Allow contacts on the app's Setup tab first; until then the answer is NO_PERMISSION. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            query: Only contacts whose name, number or email contains this, ignoring case. Spaces and dashes in numbers are ignored.
+            max: Most contacts to return, up to 500. Default: 50.
+
+        Example:
+            d.contacts("Kim")
+        """
+        return cast("List[Contact]", self._run("contacts", "value", {}, query=query, max=max))
+
 
 class ClientCommands:
     """Commands the PC server answers itself. Droidline mixes these in and implements _run."""
@@ -1993,6 +2108,9 @@ __all__ = [
     "ImageMatch",
     "Notification",
     "App",
+    "Sms",
+    "Call",
+    "Contact",
     "DumpResult",
     "ScreenshotResult",
     "FindImageResult",

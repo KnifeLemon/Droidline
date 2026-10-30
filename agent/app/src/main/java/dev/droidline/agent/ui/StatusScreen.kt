@@ -101,6 +101,9 @@ fun StatusScreen(tick: Int) {
             ReadyRow(stringResource(R.string.ready_notif), ready.notif)
             ReadyRow(stringResource(R.string.ready_capture), ready.capture)
             ReadyRow(stringResource(R.string.ready_vpn), ready.vpn)
+            ReadyRow(stringResource(R.string.ready_sms), ready.sms)
+            ReadyRow(stringResource(R.string.ready_calls), ready.calls)
+            ReadyRow(stringResource(R.string.ready_contacts), ready.contacts)
         }
 
         Section {

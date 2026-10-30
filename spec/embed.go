@@ -78,10 +78,12 @@ type Command struct {
 	SDKManual   bool     `json:"sdk_manual,omitempty"`
 	// RunsOn "server" marks a phone command the PC carries out itself, using screenshots and taps.
 	RunsOn string `json:"runs_on,omitempty"`
-	MCP         *bool    `json:"mcp,omitempty"`
-	MinSDK      int      `json:"min_sdk,omitempty"`
-	Example     string   `json:"example,omitempty"`
-	Examples    []string `json:"examples,omitempty"`
+	MCP    *bool  `json:"mcp,omitempty"`
+	// MCPOptIn keeps a tool out of the MCP server unless --tools names it.
+	MCPOptIn bool     `json:"mcp_opt_in,omitempty"`
+	MinSDK   int      `json:"min_sdk,omitempty"`
+	Example  string   `json:"example,omitempty"`
+	Examples []string `json:"examples,omitempty"`
 }
 
 // InMCP reports whether the command is exposed as an MCP tool.

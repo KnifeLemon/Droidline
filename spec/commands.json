@@ -674,6 +674,38 @@
       "mcp": false,
       "example": "on_notification(package=\"com.kakao.talk\", callback=fn)" },
 
+    { "name": "sms", "group": "personal", "phase": 3, "scope": "device", "requires": ["sms"], "mcp_opt_in": true,
+      "summary": { "en": "Text messages stored on the phone, newest first", "ko": "폰에 저장된 문자 메시지, 최신순", "zh": "手机上存储的短信，按时间从新到旧" },
+      "notes": { "en": "Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능입니다. 먼저 앱의 설정 탭에서 문자를 허용하세요. 허용 전에는 NO_PERMISSION으로 답합니다. SMS와 MMS의 글자를 읽습니다. 채팅(RCS) 메시지는 메시지 앱이 따로 보관하므로 포함되지 않습니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能。请先在应用的设置页允许短信，在此之前返回 NO_PERMISSION。读取短信和彩信中的文字。聊天消息（RCS）由短信应用自己保存，不包含在内。MCP 服务器只有在 --tools 写了这个名称时才列出此工具" },
+      "params": [
+        { "name": "box", "type": "string", "enum": ["inbox", "sent", "all"], "default": "inbox", "doc": { "en": "Received, sent, or both", "ko": "받은 문자, 보낸 문자, 또는 둘 다", "zh": "收到的、发出的，或两者" } },
+        { "name": "address", "type": "string", "doc": { "en": "Only messages whose number or sender contains this. Spaces and dashes are ignored", "ko": "번호나 보낸 사람에 이 글자가 들어간 것만. 공백과 -는 무시", "zh": "只要号码或发件人包含此文字的。忽略空格和 -" } },
+        { "name": "contains", "type": "string", "doc": { "en": "Only messages whose text contains this, ignoring case", "ko": "본문에 이 글자가 들어간 것만, 대소문자 무시", "zh": "只要正文包含此文字的，不区分大小写" } },
+        { "name": "within", "type": "number", "default": 0, "unit": "s", "doc": { "en": "Only messages from the last this many seconds. 0 means any time", "ko": "최근 이 초 안의 것만. 0이면 기간 제한 없음", "zh": "只要最近这么多秒内的。0 表示不限时间" } },
+        { "name": "max", "type": "int", "default": 20, "doc": { "en": "Most messages to return, up to 500", "ko": "돌려줄 최대 개수, 500까지", "zh": "最多返回的条数，最大 500" } } ],
+      "returns": { "kind": "value", "type": "list<sms>" },
+      "example": "sms(contains=\"인증번호\", within=300, max=1)" },
+
+    { "name": "calls", "group": "personal", "phase": 3, "scope": "device", "requires": ["calls"], "mcp_opt_in": true,
+      "summary": { "en": "Call history, newest first", "ko": "통화 기록, 최신순", "zh": "通话记录，按时间从新到旧" },
+      "notes": { "en": "Optional. Allow call history on the app's Setup tab first; until then the answer is NO_PERMISSION. Only calls made through the phone app are listed; calls inside apps such as messengers usually are not. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능입니다. 먼저 앱의 설정 탭에서 통화 기록을 허용하세요. 허용 전에는 NO_PERMISSION으로 답합니다. 전화 앱으로 한 통화만 나오며, 메신저 같은 앱 안의 통화는 보통 나오지 않습니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能。请先在应用的设置页允许通话记录，在此之前返回 NO_PERMISSION。只列出通过电话应用拨打和接听的通话，即时通讯等应用内的通话通常不在其中。MCP 服务器只有在 --tools 写了这个名称时才列出此工具" },
+      "params": [
+        { "name": "type", "type": "string", "enum": ["all", "incoming", "outgoing", "missed", "rejected", "blocked"], "default": "all", "doc": { "en": "Which calls", "ko": "어떤 통화", "zh": "哪类通话" } },
+        { "name": "number", "type": "string", "doc": { "en": "Only calls whose number or saved name contains this. Spaces and dashes are ignored", "ko": "번호나 저장된 이름에 이 글자가 들어간 것만. 공백과 -는 무시", "zh": "只要号码或已存名称包含此文字的。忽略空格和 -" } },
+        { "name": "within", "type": "number", "default": 0, "unit": "s", "doc": { "en": "Only calls from the last this many seconds. 0 means any time", "ko": "최근 이 초 안의 것만. 0이면 기간 제한 없음", "zh": "只要最近这么多秒内的。0 表示不限时间" } },
+        { "name": "max", "type": "int", "default": 20, "doc": { "en": "Most calls to return, up to 500", "ko": "돌려줄 최대 개수, 500까지", "zh": "最多返回的条数，最大 500" } } ],
+      "returns": { "kind": "value", "type": "list<call>" },
+      "example": "calls(type=\"missed\", within=3600)" },
+
+    { "name": "contacts", "group": "personal", "phase": 3, "scope": "device", "requires": ["contacts"], "mcp_opt_in": true,
+      "summary": { "en": "Contacts saved on the phone, by name", "ko": "폰에 저장된 연락처, 이름순", "zh": "手机上保存的联系人，按名称排序" },
+      "notes": { "en": "Optional. Allow contacts on the app's Setup tab first; until then the answer is NO_PERMISSION. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능입니다. 먼저 앱의 설정 탭에서 연락처를 허용하세요. 허용 전에는 NO_PERMISSION으로 답합니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能。请先在应用的设置页允许联系人，在此之前返回 NO_PERMISSION。MCP 服务器只有在 --tools 写了这个名称时才列出此工具" },
+      "params": [
+        { "name": "query", "type": "string", "doc": { "en": "Only contacts whose name, number or email contains this, ignoring case. Spaces and dashes in numbers are ignored", "ko": "이름, 번호, 이메일에 이 글자가 들어간 연락처만, 대소문자 무시. 번호의 공백과 -는 무시", "zh": "只要名称、号码或邮箱包含此文字的联系人，不区分大小写。号码中的空格和 - 会被忽略" } },
+        { "name": "max", "type": "int", "default": 50, "doc": { "en": "Most contacts to return, up to 500", "ko": "돌려줄 최대 개수, 500까지", "zh": "最多返回的条数，最大 500" } } ],
+      "returns": { "kind": "value", "type": "list<contact>" },
+      "example": "contacts(\"Kim\")" },
+
     { "name": "devices", "group": "server", "phase": 1, "scope": "server",
       "summary": { "en": "Paired devices with online state and route", "ko": "등록된 기기와 온라인 상태, 접속 경로", "zh": "已配对设备及其在线状态和连接方式" },
       "params": [],
@@ -764,6 +796,9 @@
     "device": { "fields": ["id", "name", "model", "sdk", "online", "route", "agent", "ready", "last_seen", "leased"] },
     "image_match": { "fields": ["x", "y", "bounds", "score"] },
     "notification": { "fields": ["key", "package", "title", "text", "lines", "time", "actions", "update"] },
-    "app": { "fields": ["package", "label", "version", "system"] }
+    "app": { "fields": ["package", "label", "version", "system"] },
+    "sms": { "fields": ["id", "address", "text", "time", "box", "read", "mms"] },
+    "call": { "fields": ["id", "number", "name", "type", "time", "duration"] },
+    "contact": { "fields": ["id", "name", "numbers", "emails"] }
   }
 }

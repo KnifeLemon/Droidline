@@ -4,7 +4,10 @@ import android.content.Context
 import android.net.VpnService
 import android.os.Build
 import dev.droidline.agent.a11y.DroidAccessibilityService
+import dev.droidline.agent.device.Calls
+import dev.droidline.agent.device.Contacts
 import dev.droidline.agent.device.Projection
+import dev.droidline.agent.device.Sms
 import dev.droidline.agent.ime.DroidKeyboard
 import dev.droidline.agent.notif.DroidNotificationListener
 import org.json.JSONObject
@@ -15,6 +18,9 @@ data class Ready(
     val vpn: Boolean = false,
     val notif: Boolean = false,
     val capture: Boolean = false,
+    val sms: Boolean = false,
+    val calls: Boolean = false,
+    val contacts: Boolean = false,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("a11y", a11y)
@@ -22,6 +28,9 @@ data class Ready(
         .put("vpn", vpn)
         .put("notif", notif)
         .put("capture", capture)
+        .put("sms", sms)
+        .put("calls", calls)
+        .put("contacts", contacts)
 }
 
 object Readiness {
@@ -31,5 +40,8 @@ object Readiness {
         vpn = runCatching { VpnService.prepare(ctx) == null }.getOrDefault(false),
         notif = DroidNotificationListener.isEnabled(ctx),
         capture = Build.VERSION.SDK_INT >= 30 || Projection.granted,
+        sms = Sms.granted(ctx),
+        calls = Calls.granted(ctx),
+        contacts = Contacts.granted(ctx),
     )
 }

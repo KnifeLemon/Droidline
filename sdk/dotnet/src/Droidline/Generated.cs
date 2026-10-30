@@ -359,6 +359,69 @@ public sealed class App : DroidlineObject
     public object? System => Get<object>("system");
 }
 
+/// <summary>A sms object from the server.</summary>
+public sealed class Sms : DroidlineObject
+{
+    /// <summary>The id field as a plain value, or null when it is missing. Get&lt;T&gt;("id") converts it.</summary>
+    public object? Id => Get<object>("id");
+
+    /// <summary>The address field as a plain value, or null when it is missing. Get&lt;T&gt;("address") converts it.</summary>
+    public object? Address => Get<object>("address");
+
+    /// <summary>The text field as a plain value, or null when it is missing. Get&lt;T&gt;("text") converts it.</summary>
+    public object? Text => Get<object>("text");
+
+    /// <summary>The time field as a plain value, or null when it is missing. Get&lt;T&gt;("time") converts it.</summary>
+    public object? Time => Get<object>("time");
+
+    /// <summary>The box field as a plain value, or null when it is missing. Get&lt;T&gt;("box") converts it.</summary>
+    public object? Box => Get<object>("box");
+
+    /// <summary>The read field as a plain value, or null when it is missing. Get&lt;T&gt;("read") converts it.</summary>
+    public object? Read => Get<object>("read");
+
+    /// <summary>The mms field as a plain value, or null when it is missing. Get&lt;T&gt;("mms") converts it.</summary>
+    public object? Mms => Get<object>("mms");
+}
+
+/// <summary>A call object from the server.</summary>
+public sealed class Call : DroidlineObject
+{
+    /// <summary>The id field as a plain value, or null when it is missing. Get&lt;T&gt;("id") converts it.</summary>
+    public object? Id => Get<object>("id");
+
+    /// <summary>The number field as a plain value, or null when it is missing. Get&lt;T&gt;("number") converts it.</summary>
+    public object? Number => Get<object>("number");
+
+    /// <summary>The name field as a plain value, or null when it is missing. Get&lt;T&gt;("name") converts it.</summary>
+    public object? Name => Get<object>("name");
+
+    /// <summary>The type field as a plain value, or null when it is missing. Get&lt;T&gt;("type") converts it.</summary>
+    public object? Type => Get<object>("type");
+
+    /// <summary>The time field as a plain value, or null when it is missing. Get&lt;T&gt;("time") converts it.</summary>
+    public object? Time => Get<object>("time");
+
+    /// <summary>The duration field as a plain value, or null when it is missing. Get&lt;T&gt;("duration") converts it.</summary>
+    public object? Duration => Get<object>("duration");
+}
+
+/// <summary>A contact object from the server.</summary>
+public sealed class Contact : DroidlineObject
+{
+    /// <summary>The id field as a plain value, or null when it is missing. Get&lt;T&gt;("id") converts it.</summary>
+    public object? Id => Get<object>("id");
+
+    /// <summary>The name field as a plain value, or null when it is missing. Get&lt;T&gt;("name") converts it.</summary>
+    public object? Name => Get<object>("name");
+
+    /// <summary>The numbers field as a plain value, or null when it is missing. Get&lt;T&gt;("numbers") converts it.</summary>
+    public object? Numbers => Get<object>("numbers");
+
+    /// <summary>The emails field as a plain value, or null when it is missing. Get&lt;T&gt;("emails") converts it.</summary>
+    public object? Emails => Get<object>("emails");
+}
+
 /// <summary>The reply of dump.</summary>
 public sealed class DumpResult : DroidlineObject
 {
@@ -2414,6 +2477,58 @@ public partial class Device
         var msg = new Params();
         msg.Opt("packages", packages);
         return RunValueAsync<IReadOnlyList<string>>("notify_filter", msg, cancellationToken);
+    }
+
+    /// <summary>Text messages stored on the phone, newest first.</summary>
+    /// <remarks>Optional. Allow SMS on the app's Setup tab first; until then the answer is NO_PERMISSION. Covers SMS and the text of MMS. Chat messages (RCS) are kept by the messaging app itself and are not included. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="box">Received, sent, or both. Default: "inbox".</param>
+    /// <param name="address">Only messages whose number or sender contains this. Spaces and dashes are ignored.</param>
+    /// <param name="contains">Only messages whose text contains this, ignoring case.</param>
+    /// <param name="within">Only messages from the last this many seconds. 0 means any time. Default: 0.</param>
+    /// <param name="max">Most messages to return, up to 500. Default: 20.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <example><code>await d.SmsAsync(contains: "인증번호", within: 300, max: 1);</code></example>
+    public Task<IReadOnlyList<Sms>> SmsAsync(string? box = null, string? address = null, string? contains = null, double? within = null, int? max = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Opt("box", box);
+        msg.Opt("address", address);
+        msg.Opt("contains", contains);
+        msg.Opt("within", within);
+        msg.Opt("max", max);
+        return RunValueAsync<IReadOnlyList<Sms>>("sms", msg, cancellationToken);
+    }
+
+    /// <summary>Call history, newest first.</summary>
+    /// <remarks>Optional. Allow call history on the app's Setup tab first; until then the answer is NO_PERMISSION. Only calls made through the phone app are listed; calls inside apps such as messengers usually are not. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="type">Which calls. Default: "all".</param>
+    /// <param name="number">Only calls whose number or saved name contains this. Spaces and dashes are ignored.</param>
+    /// <param name="within">Only calls from the last this many seconds. 0 means any time. Default: 0.</param>
+    /// <param name="max">Most calls to return, up to 500. Default: 20.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <example><code>await d.CallsAsync(type: "missed", within: 3600);</code></example>
+    public Task<IReadOnlyList<Call>> CallsAsync(string? type = null, string? number = null, double? within = null, int? max = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Opt("type", type);
+        msg.Opt("number", number);
+        msg.Opt("within", within);
+        msg.Opt("max", max);
+        return RunValueAsync<IReadOnlyList<Call>>("calls", msg, cancellationToken);
+    }
+
+    /// <summary>Contacts saved on the phone, by name.</summary>
+    /// <remarks>Optional. Allow contacts on the app's Setup tab first; until then the answer is NO_PERMISSION. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="query">Only contacts whose name, number or email contains this, ignoring case. Spaces and dashes in numbers are ignored.</param>
+    /// <param name="max">Most contacts to return, up to 500. Default: 50.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <example><code>await d.ContactsAsync("Kim");</code></example>
+    public Task<IReadOnlyList<Contact>> ContactsAsync(string? query = null, int? max = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Opt("query", query);
+        msg.Opt("max", max);
+        return RunValueAsync<IReadOnlyList<Contact>>("contacts", msg, cancellationToken);
     }
 }
 

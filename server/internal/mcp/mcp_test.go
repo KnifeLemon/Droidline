@@ -21,11 +21,11 @@ func names(t *testing.T, o Options) map[string]bool {
 	return out
 }
 
-func TestDefaultListsEveryTool(t *testing.T) {
+func TestDefaultListsEveryToolButOptIn(t *testing.T) {
 	got := names(t, Options{})
 	want := 0
 	for _, c := range spec.MustLoad().Commands {
-		if c.InMCP() {
+		if c.InMCP() && !c.MCPOptIn {
 			want++
 		}
 	}
@@ -95,5 +95,43 @@ func TestAnnotationsMarkTapsAsActions(t *testing.T) {
 				t.Errorf("%s is not marked read-only", m["name"])
 			}
 		}
+	}
+}
+
+func TestOptInToolNeedsTools(t *testing.T) {
+	if got := names(t, Options{}); got["sms"] || got["calls"] || got["contacts"] {
+		t.Fatal("an opt-in tool is listed without --tools")
+	}
+	if got := names(t, Options{ReadOnly: true}); got["sms"] {
+		t.Fatal("sms listed under --read-only alone")
+	}
+	if got := names(t, Options{Tools: []string{"sms", "dump"}, ReadOnly: true}); !got["sms"] || !got["dump"] {
+		t.Fatalf("got %v", got)
+	}
+	sp := spec.MustLoad()
+	allow, _ := allowed(sp, Options{})
+	s := &session{sp: sp, allow: allow}
+	if res := s.callTool("sms", map[string]any{}); res["isError"] != true {
+		t.Fatalf("sms was not refused: %v", res)
+	}
+}
+
+func TestBatchStepsMustBeAllowed(t *testing.T) {
+	sp := spec.MustLoad()
+	allow, _ := allowed(sp, Options{Tools: []string{"batch", "touch"}})
+	s := &session{sp: sp, allow: allow}
+	for _, steps := range [][]any{
+		{[]any{"touch", "text", "OK"}, []any{"clear_data", "com.android.chrome"}},
+		{map[string]any{"cmd": "sms"}},
+		{[]any{"touchByText", "OK"}, []any{"sleep", 100.0}, map[string]any{"cmd": "tap", "x": 1.0, "y": 2.0}},
+	} {
+		if res := s.callTool("batch", map[string]any{"steps": steps}); res["isError"] != true {
+			t.Fatalf("batch %v was not refused: %v", steps, res)
+		}
+	}
+	allow, _ = allowed(sp, Options{})
+	s = &session{sp: sp, allow: allow}
+	if res := s.callTool("batch", map[string]any{"steps": []any{[]any{"sms"}}}); res["isError"] != true {
+		t.Fatalf("default set let sms run inside batch: %v", res)
 	}
 }

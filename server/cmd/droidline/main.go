@@ -467,7 +467,8 @@ func cmdDevices(g globals) error {
 			var missing []string
 			if r, ok := d["ready"].(map[string]any); ok {
 				for k, v := range r {
-					if v != true {
+					// sms, calls and contacts are opt-in, so leaving them off is not something missing.
+					if v != true && !optInReady[k] {
 						missing = append(missing, k)
 					}
 				}
@@ -482,6 +483,8 @@ func cmdDevices(g globals) error {
 	}
 	return nil
 }
+
+var optInReady = map[string]bool{"sms": true, "calls": true, "contacts": true}
 
 func str(v any) string {
 	if v == nil {

@@ -12,7 +12,7 @@ android {
         minSdk = 28
         targetSdk = 36
         versionCode = System.getenv("DROIDLINE_VERSION_CODE")?.toInt() ?: 1
-        versionName = System.getenv("DROIDLINE_VERSION") ?: "0.1.11"
+        versionName = System.getenv("DROIDLINE_VERSION") ?: "0.1.12"
     }
 
     // Release signing comes from CI secrets; local release builds stay unsigned.
