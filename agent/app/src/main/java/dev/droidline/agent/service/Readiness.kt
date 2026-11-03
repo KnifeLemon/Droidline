@@ -6,7 +6,11 @@ import android.os.Build
 import dev.droidline.agent.a11y.DroidAccessibilityService
 import dev.droidline.agent.device.Calls
 import dev.droidline.agent.device.Contacts
+import dev.droidline.agent.device.Files
+import dev.droidline.agent.device.Locate
+import dev.droidline.agent.device.Phone
 import dev.droidline.agent.device.Projection
+import dev.droidline.agent.device.SmsSend
 import dev.droidline.agent.device.Sms
 import dev.droidline.agent.ime.DroidKeyboard
 import dev.droidline.agent.notif.DroidNotificationListener
@@ -21,6 +25,10 @@ data class Ready(
     val sms: Boolean = false,
     val calls: Boolean = false,
     val contacts: Boolean = false,
+    val smsSend: Boolean = false,
+    val phone: Boolean = false,
+    val files: Boolean = false,
+    val location: Boolean = false,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("a11y", a11y)
@@ -31,6 +39,10 @@ data class Ready(
         .put("sms", sms)
         .put("calls", calls)
         .put("contacts", contacts)
+        .put("sms_send", smsSend)
+        .put("phone", phone)
+        .put("files", files)
+        .put("location", location)
 }
 
 object Readiness {
@@ -43,5 +55,9 @@ object Readiness {
         sms = Sms.granted(ctx),
         calls = Calls.granted(ctx),
         contacts = Contacts.granted(ctx),
+        smsSend = SmsSend.granted(ctx),
+        phone = Phone.granted(ctx),
+        files = Files.granted(ctx),
+        location = Locate.granted(ctx),
     )
 }

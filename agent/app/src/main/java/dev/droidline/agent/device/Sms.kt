@@ -17,6 +17,7 @@ object Sms {
     // PduHeaders.FROM and PduHeaders.TO, which are not public API.
     private const val ADDR_FROM = 137
     private const val ADDR_TO = 151
+    private const val BULK_OVER = 50
 
     fun granted(ctx: Context) =
         ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
@@ -67,21 +68,51 @@ object Sms {
     }
 
     private fun mms(ctx: Context, f: Filter): List<JSONObject> {
-        val out = ArrayList<JSONObject>()
+        val rows = ArrayList<MmsRow>()
         val cols = arrayOf(Telephony.Mms._ID, Telephony.Mms.DATE, Telephony.Mms.MESSAGE_BOX, Telephony.Mms.READ)
         // MMS dates are in seconds.
         val where = boxSelection(f, Telephony.Mms.MESSAGE_BOX) + " AND ${Telephony.Mms.DATE} >= ${f.since / 1000}"
         ctx.contentResolver.query(Telephony.Mms.CONTENT_URI, cols, where, null, "${Telephony.Mms.DATE} DESC")?.use { c ->
-            while (out.size < f.max && c.moveToNext()) {
-                val id = c.getLong(0)
-                val boxValue = c.getInt(2)
-                val text = mmsText(ctx, id)
-                val address = mmsAddress(ctx, id, if (boxValue == INBOX) ADDR_FROM else ADDR_TO)
-                if (!f.keep(address, text)) continue
-                out += message(id, address, text, c.getLong(1) * 1000, boxValue, c.getInt(3) == 1, mms = true)
-            }
+            while (c.moveToNext()) rows += MmsRow(c.getLong(0), c.getLong(1) * 1000, c.getInt(2), c.getInt(3) == 1)
+        }
+        // A filter can walk every MMS, and two lookups per message took minutes on a phone with 5,000 of them.
+        // One query for all text parts and one for all addresses stays around a second.
+        val bulk = (f.address.isNotEmpty() || f.contains.isNotEmpty()) && rows.size > BULK_OVER
+        val texts = if (bulk) allTexts(ctx) else null
+        val addresses = if (bulk) allAddresses(ctx) else null
+
+        val out = ArrayList<JSONObject>()
+        for (r in rows) {
+            if (out.size >= f.max) break
+            val type = if (r.box == INBOX) ADDR_FROM else ADDR_TO
+            val text = if (texts != null) texts[r.id].orEmpty().joinToString("\n") else mmsText(ctx, r.id)
+            val address = if (addresses != null) addresses[r.id to type].orEmpty().joinToString(", ") else mmsAddress(ctx, r.id, type)
+            if (!f.keep(address, text)) continue
+            out += message(r.id, address, text, r.time, r.box, r.read, mms = true)
         }
         return out
+    }
+
+    private class MmsRow(val id: Long, val time: Long, val box: Int, val read: Boolean)
+
+    private fun allTexts(ctx: Context): Map<Long, List<String>> {
+        val map = HashMap<Long, ArrayList<String>>()
+        ctx.contentResolver.query(Uri.parse("content://mms/part"), arrayOf("mid", "text"), "ct = 'text/plain'", null, "mid, seq")?.use { c ->
+            while (c.moveToNext()) c.getString(1)?.let { map.getOrPut(c.getLong(0)) { ArrayList() } += it }
+        }
+        return map
+    }
+
+    private fun allAddresses(ctx: Context): Map<Pair<Long, Int>, List<String>> {
+        val map = HashMap<Pair<Long, Int>, ArrayList<String>>()
+        val where = "type IN ($ADDR_FROM, $ADDR_TO)"
+        ctx.contentResolver.query(Uri.parse("content://mms/addr"), arrayOf("msg_id", "type", "address"), where, null, null)?.use { c ->
+            while (c.moveToNext()) {
+                val a = c.getString(2)?.takeIf { it.isNotBlank() && it != "insert-address-token" } ?: continue
+                map.getOrPut(c.getLong(0) to c.getInt(1)) { ArrayList() } += a
+            }
+        }
+        return map
     }
 
     private fun mmsText(ctx: Context, id: Long): String {

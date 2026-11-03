@@ -8,6 +8,10 @@ import dev.droidline.agent.device.Capture
 import dev.droidline.agent.device.Calls
 import dev.droidline.agent.device.Contacts
 import dev.droidline.agent.device.DeviceCommands
+import dev.droidline.agent.device.Files
+import dev.droidline.agent.device.Locate
+import dev.droidline.agent.device.Phone
+import dev.droidline.agent.device.SmsSend
 import dev.droidline.agent.device.Sms
 import dev.droidline.agent.link.CommandCache
 import dev.droidline.agent.notif.DroidNotificationListener
@@ -126,6 +130,10 @@ class CommandRunner(private val ctx: Context, private val scope: CoroutineScope)
         if ("sms" in c.requires && !Sms.granted(ctx)) throw CmdError.noPermission("sms")
         if ("calls" in c.requires && !Calls.granted(ctx)) throw CmdError.noPermission("calls")
         if ("contacts" in c.requires && !Contacts.granted(ctx)) throw CmdError.noPermission("contacts")
+        if ("sms_send" in c.requires && !SmsSend.granted(ctx)) throw CmdError.noPermission("sms_send")
+        if ("phone" in c.requires && !Phone.granted(ctx)) throw CmdError.noPermission("phone")
+        if ("files" in c.requires && !Files.granted(ctx)) throw CmdError.noPermission("files")
+        if ("location" in c.requires && !Locate.granted(ctx)) throw CmdError.noPermission("location")
     }
 
     private fun releaseFor(sdk: Int) = when (sdk) {
@@ -209,6 +217,12 @@ class CommandRunner(private val ctx: Context, private val scope: CoroutineScope)
             "sms" -> Sms.read(ctx, p)
             "calls" -> Calls.read(ctx, p)
             "contacts" -> Contacts.read(ctx, p)
+            "sms_send" -> SmsSend.send(ctx, p)
+            "dial" -> Phone.dial(ctx, p)
+            "hang_up" -> Phone.hangUp(ctx)
+            "files" -> Files.list(ctx, p)
+            "pull" -> Files.pull(ctx, p)
+            "location" -> Locate.read(ctx, p)
             else -> throw CmdError("UNKNOWN_CMD", mapOf("cmd" to name, "agent" to Agent.version))
         }
     }

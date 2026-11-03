@@ -6,6 +6,35 @@ version it publishes under "What's Changed" in the GitHub release notes, above t
 Add a `## <version>` section before tagging a release. Write what someone using Droidline notices: what's new, how to
 call it, what it does and doesn't do.
 
+## 0.1.13
+
+### New, all optional
+
+More commands for the phone's own data and functions, each behind its own card on the Setup tab and left out of
+`droidline mcp` unless `--tools` names it. Until you allow one, the phone answers `NO_PERMISSION`.
+
+- `wait_sms` waits for a new text message that matches `address` or `contains` and returns it. The PC checks the
+  inbox every second, so it needs only the SMS permission, not notification access.
+- `sms_send(number, text)` sends a text message from the default SIM and answers once the network accepted every
+  part, with `parts`, or with the new error `SEND_FAILED`. Carrier charges may apply.
+- `dial(number)` starts a call in the phone app, and `hang_up()` ends the current call or rejects a ringing one.
+- `files(path)` lists a folder in shared storage, sorted by `name` or `time`, and `pull(file, path)` copies a file of
+  up to 32 MB to the PC. Paths outside shared storage are refused.
+- `location()` returns `lat`, `lon`, `accuracy`, `time` and `provider`. A fix from the last `max_age` seconds comes
+  back at once. The new error `LOCATION_OFF` means location is turned off on the phone. Location needs "Allow all the
+  time", because commands run while the app is in the background.
+- The **Messaging app** switch on the Status tab, or `@sms` in `notify_filter`, sends the notifications of whichever
+  app is the default messaging app.
+- `droidline mcp` marks `sms_send`, `dial` and `hang_up` as destructive.
+
+### Fixed
+
+- `sms` with `address` or `contains` read the text and sender of each MMS one by one, which took over a minute on a
+  phone with 5,000 MMS and made `wait_sms` time out. It now loads them in bulk, and the same search takes a few
+  seconds.
+- The generated SDKs and the CLI no longer treat every parameter called `path` as a local file. Only the
+  client-only `path` of `screenshot`, `dump` and `pull` is.
+
 ## 0.1.12
 
 ### New, optional

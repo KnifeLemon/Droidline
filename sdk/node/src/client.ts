@@ -432,7 +432,8 @@ export class Device extends DeviceCommands {
 
   protected async _saveImage(cmd: string, params: Params): Promise<Buffer | string> {
     const { path, ...rest } = params;
-    if (typeof path === "string" && rest.format === undefined) {
+    // Only screenshot has a format; pull saves the bytes as they are.
+    if (typeof path === "string" && cmd === "screenshot" && rest.format === undefined) {
       const format = IMAGE_FORMATS[extname(path).toLowerCase()];
       if (format) rest.format = format;
     }

@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -35,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.droidline.agent.Agent
 import dev.droidline.agent.R
+import dev.droidline.agent.device.Locate
+import dev.droidline.agent.device.Phone
 import dev.droidline.agent.ime.DroidKeyboard
 import dev.droidline.agent.notif.DroidNotificationListener
 
@@ -128,34 +131,96 @@ fun SetupScreen(tick: Int) {
                 if (intent != null) vpnConsent.launch(intent) else Agent.refreshReady()
             }) { Text(stringResource(R.string.btn_grant)) }
         }
-        DataCard(R.string.sms_title, R.string.sms_desc, R.string.sms_off_note, Manifest.permission.READ_SMS, ready.sms) { localTick++ }
-        DataCard(R.string.calls_title, R.string.calls_desc, R.string.calls_off_note, Manifest.permission.READ_CALL_LOG, ready.calls) { localTick++ }
-        DataCard(R.string.contacts_title, R.string.contacts_desc, R.string.contacts_off_note, Manifest.permission.READ_CONTACTS, ready.contacts) { localTick++ }
+        DataCard(R.string.sms_title, R.string.sms_desc, R.string.sms_off_note, arrayOf(Manifest.permission.READ_SMS), ready.sms) { localTick++ }
+        DataCard(R.string.sms_send_title, R.string.sms_send_desc, R.string.sms_send_off_note, arrayOf(Manifest.permission.SEND_SMS), ready.smsSend) { localTick++ }
+        DataCard(R.string.calls_title, R.string.calls_desc, R.string.calls_off_note, arrayOf(Manifest.permission.READ_CALL_LOG), ready.calls) { localTick++ }
+        DataCard(R.string.phone_title, R.string.phone_desc, R.string.phone_off_note, Phone.permissions, ready.phone) { localTick++ }
+        DataCard(R.string.contacts_title, R.string.contacts_desc, R.string.contacts_off_note, arrayOf(Manifest.permission.READ_CONTACTS), ready.contacts) { localTick++ }
+        FilesCard(ready.files) { localTick++ }
+        LocationCard(ready.location, Locate.foreground(ctx)) { localTick++ }
         Spacer(Modifier.height(8.dp))
     }
 }
 
-/** An optional permission for reading personal data, asked for only when the user taps Allow. */
+/** Asks for runtime permissions; after "Don't ask again" the dialog no longer shows, so it opens App info instead. */
 @Composable
-private fun DataCard(title: Int, body: Int, offNote: Int, permission: String, on: Boolean, changed: () -> Unit) {
+private fun rememberAsk(changed: () -> Unit): (Array<String>) -> Unit {
     val ctx = LocalContext.current
-    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        // After "Don't ask again" the dialog no longer shows, so send the user to App info instead.
+    var asked by remember { mutableStateOf(emptyArray<String>()) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         val activity = ctx as? ComponentActivity
-        if (!granted && activity != null && !activity.shouldShowRequestPermissionRationale(permission)) {
+        val denied = asked.filter { result[it] == false }
+        if (denied.isNotEmpty() && activity != null && denied.none { activity.shouldShowRequestPermissionRationale(it) }) {
             SystemScreens.appInfo(ctx)
         }
         Agent.refreshReady()
         changed()
     }
+    return { perms -> asked = perms; launcher.launch(perms) }
+}
+
+/** An optional permission for personal data, asked for only when the user taps Allow. */
+@Composable
+private fun DataCard(title: Int, body: Int, offNote: Int, permissions: Array<String>, on: Boolean, changed: () -> Unit) {
+    val ctx = LocalContext.current
+    val ask = rememberAsk(changed)
     StepCard(
         title = stringResource(title),
         body = stringResource(body),
         state = if (on) StepState.ON else StepState.OPTIONAL,
         note = if (on) stringResource(offNote) else null,
     ) {
-        if (!on) OutlinedButton(onClick = { ask.launch(permission) }) { Text(stringResource(R.string.btn_allow)) }
+        if (!on) OutlinedButton(onClick = { ask(permissions) }) { Text(stringResource(R.string.btn_allow)) }
         else OutlinedButton(onClick = { SystemScreens.appInfo(ctx) }) { Text(stringResource(R.string.btn_app_info)) }
+    }
+}
+
+/** Android 11+ grants file access on its own settings page; older versions ask with a dialog. */
+@Composable
+private fun FilesCard(on: Boolean, changed: () -> Unit) {
+    val ctx = LocalContext.current
+    val ask = rememberAsk(changed)
+    StepCard(
+        title = stringResource(R.string.files_title),
+        body = stringResource(R.string.files_desc),
+        state = if (on) StepState.ON else StepState.OPTIONAL,
+        note = if (on) stringResource(R.string.files_off_note) else null,
+    ) {
+        OutlinedButton(onClick = {
+            when {
+                Build.VERSION.SDK_INT >= 30 -> SystemScreens.allFilesAccess(ctx)
+                on -> SystemScreens.appInfo(ctx)
+                else -> ask(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
+            }
+        }) { Text(stringResource(if (on || Build.VERSION.SDK_INT >= 30) R.string.btn_open_settings else R.string.btn_allow)) }
+    }
+}
+
+/** Location needs two steps on Android 10+: while in use first, then all the time, which Android asks for separately. */
+@Composable
+private fun LocationCard(on: Boolean, foreground: Boolean, changed: () -> Unit) {
+    val ctx = LocalContext.current
+    val ask = rememberAsk(changed)
+    StepCard(
+        title = stringResource(R.string.location_title),
+        body = stringResource(R.string.location_desc),
+        state = when {
+            on -> StepState.ON
+            foreground -> StepState.PARTIAL
+            else -> StepState.OPTIONAL
+        },
+        partialText = stringResource(R.string.location_partial),
+        note = if (on) stringResource(R.string.location_off_note) else null,
+    ) {
+        when {
+            on -> OutlinedButton(onClick = { SystemScreens.appInfo(ctx) }) { Text(stringResource(R.string.btn_app_info)) }
+            !foreground -> OutlinedButton(onClick = {
+                ask(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            }) { Text(stringResource(R.string.btn_allow)) }
+            else -> Button(onClick = { ask(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) }) {
+                Text(stringResource(R.string.btn_allow_always))
+            }
+        }
     }
 }
 

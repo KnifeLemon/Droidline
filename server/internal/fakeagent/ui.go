@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +36,10 @@ type node struct {
 
 // phoneUI models a launcher and a demo app with a login and a main screen.
 type phoneUI struct {
+	// smsMu guards the messages added by PostSMS and sms_send, and the call state.
+	smsMu     sync.Mutex
+	extraSMS  []map[string]any
+	inCall    bool
 	mu        sync.Mutex
 	pkg, act  string
 	email     string
@@ -113,14 +118,25 @@ func (u *phoneUI) addNotification(n map[string]any) {
 	u.mu.Unlock()
 }
 
-// fakeSMS filters three made-up messages by the same rules as the app.
-func fakeSMS(m map[string]any) []map[string]any {
+// addSMS stores a message as if it had just arrived or been sent.
+func (u *phoneUI) addSMS(box, address, text string) {
+	u.smsMu.Lock()
+	defer u.smsMu.Unlock()
+	u.extraSMS = append([]map[string]any{{"id": 4 + len(u.extraSMS), "address": address, "text": text,
+		"time": time.Now().UnixMilli(), "box": box, "read": box == "sent", "mms": false}}, u.extraSMS...)
+}
+
+// fakeSMS filters three made-up messages, plus any added since, by the same rules as the app.
+func (u *phoneUI) fakeSMS(m map[string]any) []map[string]any {
 	now := time.Now().UnixMilli()
-	all := []map[string]any{
+	u.smsMu.Lock()
+	all := append([]map[string]any{}, u.extraSMS...)
+	u.smsMu.Unlock()
+	all = append(all, []map[string]any{
 		{"id": 3, "address": "1588-0000", "text": "[Bank] Your code is 4821", "time": now - 60_000, "box": "inbox", "read": false, "mms": false},
 		{"id": 2, "address": "+82 10-1234-5678", "text": "Running late, see you at 7", "time": now - 3_600_000, "box": "sent", "read": true, "mms": false},
 		{"id": 1, "address": "+82 10-1234-5678", "text": "Dinner tonight?", "time": now - 7_200_000, "box": "inbox", "read": true, "mms": false},
-	}
+	}...)
 	clean := strings.NewReplacer(" ", "", "-", "")
 	box := str(m, "box")
 	addr := clean.Replace(str(m, "address"))
@@ -142,6 +158,52 @@ func fakeSMS(m map[string]any) []map[string]any {
 		out = append(out, s)
 	}
 	return out
+}
+
+// fakeTree is the shared storage the simulator pretends to have: folder to entries.
+var fakeTree = map[string][]map[string]any{
+	"":                 {{"name": "DCIM", "dir": true}, {"name": "Download", "dir": true}},
+	"DCIM":             {{"name": "Screenshots", "dir": true}},
+	"DCIM/Screenshots": {{"name": "Screenshot_1.png", "size": 7, "age": 3_600_000}, {"name": "Screenshot_2.png", "size": 7, "age": 60_000}},
+	"Download":         {{"name": "report.pdf", "size": 11, "age": 86_400_000}},
+}
+
+var fakeContent = map[string]string{
+	"DCIM/Screenshots/Screenshot_1.png": "older!!",
+	"DCIM/Screenshots/Screenshot_2.png": "newest!",
+	"Download/report.pdf":               "%PDF-report",
+}
+
+func fakeFiles(m map[string]any) map[string]any {
+	dir := strings.Trim(str(m, "path"), "/")
+	entries, found := fakeTree[dir]
+	if !found {
+		return fail("BAD_ARGS", "no folder "+dir, "cmd", "files", "reason", "no folder "+dir)
+	}
+	now := time.Now().UnixMilli()
+	out := []map[string]any{}
+	for _, e := range entries {
+		age, _ := e["age"].(int)
+		size, _ := e["size"].(int)
+		path := strings.TrimPrefix(dir+"/"+e["name"].(string), "/")
+		out = append(out, map[string]any{"name": e["name"], "path": path, "size": size, "time": now - int64(age), "dir": e["dir"] == true})
+	}
+	if str(m, "sort") == "time" {
+		sort.Slice(out, func(i, j int) bool { return out[i]["time"].(int64) > out[j]["time"].(int64) })
+	}
+	if limit := int(num(m, "max", 200)); len(out) > limit {
+		out = out[:limit]
+	}
+	return ok("value", out)
+}
+
+func fakePull(m map[string]any) map[string]any {
+	file := strings.Trim(str(m, "file"), "/")
+	body, found := fakeContent[file]
+	if !found {
+		return fail("BAD_ARGS", "no file "+file, "cmd", "pull", "reason", "no file "+file)
+	}
+	return ok("name", file[strings.LastIndex(file, "/")+1:], "size", len(body), "data", base64.StdEncoding.EncodeToString([]byte(body)))
 }
 
 // fakeCalls filters three made-up calls by the same rules as the app.
@@ -541,7 +603,28 @@ func (u *phoneUI) run(a *Agent, name string, m map[string]any) map[string]any {
 		}
 		return ok("value", out)
 	case "sms":
-		return ok("value", fakeSMS(m))
+		return ok("value", u.fakeSMS(m))
+	case "sms_send":
+		text := str(m, "text")
+		u.addSMS("sent", str(m, "number"), text)
+		return ok("parts", (len(text)+159)/160)
+	case "dial":
+		u.smsMu.Lock()
+		u.inCall = true
+		u.smsMu.Unlock()
+		return ok()
+	case "hang_up":
+		u.smsMu.Lock()
+		was := u.inCall
+		u.inCall = false
+		u.smsMu.Unlock()
+		return ok("value", was)
+	case "files":
+		return fakeFiles(m)
+	case "pull":
+		return fakePull(m)
+	case "location":
+		return ok("lat", 37.5665, "lon", 126.978, "accuracy", 12.0, "time", time.Now().UnixMilli(), "provider", "fused")
 	case "calls":
 		return ok("value", fakeCalls(m))
 	case "contacts":

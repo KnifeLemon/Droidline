@@ -23,6 +23,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +34,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import dev.droidline.agent.notif.DroidNotificationListener.Companion.SMS_APP
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -104,14 +106,30 @@ fun StatusScreen(tick: Int) {
             ReadyRow(stringResource(R.string.ready_sms), ready.sms)
             ReadyRow(stringResource(R.string.ready_calls), ready.calls)
             ReadyRow(stringResource(R.string.ready_contacts), ready.contacts)
+            ReadyRow(stringResource(R.string.ready_sms_send), ready.smsSend)
+            ReadyRow(stringResource(R.string.ready_phone), ready.phone)
+            ReadyRow(stringResource(R.string.ready_files), ready.files)
+            ReadyRow(stringResource(R.string.ready_location), ready.location)
         }
 
         Section {
             Text(stringResource(R.string.notif_filter_title), style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.notif_sms_app))
+                    Text(stringResource(R.string.notif_sms_app_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = SMS_APP in allowlist, onCheckedChange = { on ->
+                    val next = if (on) allowlist + SMS_APP else allowlist - SMS_APP
+                    Agent.settings.notifyAllowlist = next
+                    allowlist = next
+                })
+            }
+            val apps = allowlist - SMS_APP
             if (allowlist.isEmpty()) {
                 Text(stringResource(R.string.notif_filter_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                allowlist.sorted().forEach { Text(it, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
+                apps.sorted().forEach { Text(it, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
             }
             OutlinedButton(onClick = { picking = true }) { Text(stringResource(R.string.btn_choose_apps)) }
         }
@@ -136,11 +154,12 @@ fun StatusScreen(tick: Int) {
 
     if (picking) {
         AppPicker(
-            initial = allowlist,
+            initial = allowlist - SMS_APP,
             onDismiss = { picking = false },
             onDone = {
-                Agent.settings.notifyAllowlist = it
-                allowlist = it
+                val next = if (SMS_APP in allowlist) it + SMS_APP else it
+                Agent.settings.notifyAllowlist = next
+                allowlist = next
                 picking = false
             },
         )

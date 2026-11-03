@@ -99,8 +99,18 @@ func TestAnnotationsMarkTapsAsActions(t *testing.T) {
 }
 
 func TestOptInToolNeedsTools(t *testing.T) {
-	if got := names(t, Options{}); got["sms"] || got["calls"] || got["contacts"] {
-		t.Fatal("an opt-in tool is listed without --tools")
+	defaults := names(t, Options{})
+	optIn := 0
+	for _, c := range spec.MustLoad().Commands {
+		if c.MCPOptIn {
+			optIn++
+			if defaults[toolName(c.Name)] {
+				t.Errorf("%s is listed without --tools", c.Name)
+			}
+		}
+	}
+	if optIn < 10 {
+		t.Fatalf("only %d opt-in tools in the spec", optIn)
 	}
 	if got := names(t, Options{ReadOnly: true}); got["sms"] {
 		t.Fatal("sms listed under --read-only alone")

@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.provider.Telephony
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationManagerCompat
@@ -36,10 +37,16 @@ class DroidNotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val update = !showing.add(sbn.key)
-        if (sbn.packageName !in Agent.settings.notifyAllowlist) return
+        if (!allowed(sbn.packageName)) return
         if (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return
         val event = toJson(sbn).put("event", "notification").put("update", update)
         Agent.emit(event, Session.KIND_NOTIFICATION)
+    }
+
+    /** The allowlist holds package names, plus @sms for whichever app is the default messaging app. */
+    private fun allowed(pkg: String): Boolean {
+        val list = Agent.settings.notifyAllowlist
+        return pkg in list || (SMS_APP in list && pkg == Telephony.Sms.getDefaultSmsPackage(this))
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
@@ -47,6 +54,9 @@ class DroidNotificationListener : NotificationListenerService() {
     }
 
     companion object {
+        /** Allowlist entry that stands for the default messaging app. */
+        const val SMS_APP = "@sms"
+
         @Volatile var instance: DroidNotificationListener? = null
             private set
 

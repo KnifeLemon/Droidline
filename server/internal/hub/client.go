@@ -146,6 +146,9 @@ func (c *Client) prepare(req map[string]any) prepared {
 	if cmd.RunsOn == "server" {
 		return prepared{later: func() Result {
 			defer done()
+			if cmd.Name == "wait_sms" {
+				return h.waitSMS(d, cmd, params)
+			}
 			return h.visionCmd(d, cmd, params)
 		}}
 	}

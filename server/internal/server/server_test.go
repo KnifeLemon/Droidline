@@ -326,6 +326,56 @@ func TestCallsAndContacts(t *testing.T) {
 	}
 }
 
+func TestPhoneExtras(t *testing.T) {
+	r := newRig(t)
+	r.pairByCode()
+
+	got := make(chan map[string]any, 1)
+	go func() { got <- r.call(map[string]any{"cmd": "wait_sms", "contains": "code", "timeout": 10}) }()
+	time.Sleep(1500 * time.Millisecond)
+	r.phone.PostSMS("1588-0000", "unrelated notice")
+	r.phone.PostSMS("1588-0000", "Your new code is 7350")
+	res := <-got
+	if v, _ := res["value"].(map[string]any); v["text"] != "Your new code is 7350" {
+		t.Fatalf("wait_sms %v", res)
+	}
+	if res := r.call(map[string]any{"cmd": "wait_sms", "timeout": 1}); res["error"] != "TIMEOUT" {
+		t.Fatalf("wait_sms with nothing new %v", res)
+	}
+
+	if parts := r.mustOK(map[string]any{"cmd": "sms_send", "number": "01012345678", "text": "On my way"})["parts"]; fmt.Sprint(parts) != "1" {
+		t.Fatalf("sms_send parts %v", parts)
+	}
+	sent := r.mustOK(map[string]any{"cmd": "sms", "box": "sent", "max": 1})["value"].([]any)
+	if sent[0].(map[string]any)["text"] != "On my way" {
+		t.Fatalf("sent box %v", sent)
+	}
+
+	r.mustOK(map[string]any{"cmd": "dial", "number": "01012345678"})
+	if v := r.mustOK(map[string]any{"cmd": "hang_up"})["value"]; v != true {
+		t.Fatalf("hang_up after dial %v", v)
+	}
+	if v := r.mustOK(map[string]any{"cmd": "hang_up"})["value"]; v != false {
+		t.Fatalf("hang_up with no call %v", v)
+	}
+
+	newest := r.mustOK(map[string]any{"cmd": "files", "path": "DCIM/Screenshots", "sort": "time", "max": 1})["value"].([]any)
+	if len(newest) != 1 || newest[0].(map[string]any)["name"] != "Screenshot_2.png" {
+		t.Fatalf("newest screenshot %v", newest)
+	}
+	if res := r.call(map[string]any{"cmd": "files", "path": "Nope"}); res["error"] != "BAD_ARGS" {
+		t.Fatalf("missing folder %v", res)
+	}
+	pulled := r.mustOK(map[string]any{"cmd": "pull", "file": "Download/report.pdf"})
+	if data, _ := base64.StdEncoding.DecodeString(pulled["data"].(string)); string(data) != "%PDF-report" || pulled["name"] != "report.pdf" {
+		t.Fatalf("pull %v", pulled)
+	}
+
+	if loc := r.mustOK(map[string]any{"cmd": "location"}); loc["provider"] == nil || loc["lat"] == nil {
+		t.Fatalf("location %v", loc)
+	}
+}
+
 func TestPairByQR(t *testing.T) {
 	r := newRig(t)
 	uri := r.mustOK(map[string]any{"cmd": "pair_qr", "name": "qr-phone"})["uri"].(string)

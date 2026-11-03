@@ -32,6 +32,14 @@ object SystemScreens {
         )
     }
 
+    /** Android 11+: the All files access switch for this app. */
+    fun allFilesAccess(ctx: Context) {
+        ctx.tryStart(
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.fromParts("package", ctx.packageName, null)),
+            Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
+        )
+    }
+
     fun appInfo(ctx: Context) {
         ctx.tryStart(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", ctx.packageName, null)))
     }

@@ -160,6 +160,18 @@ Contact = TypedDict(
     total=False,
 )
 
+FileEntry = TypedDict(
+    "FileEntry",
+    {
+        "name": Any,
+        "path": Any,
+        "size": Any,
+        "time": Any,
+        "dir": Any,
+    },
+    total=False,
+)
+
 DumpResult = TypedDict(
     "DumpResult",
     {
@@ -240,6 +252,18 @@ ProxyCheckResult = TypedDict(
         "ip": str,
         "upstream": str,
         "error": str,
+    },
+)
+SmsSendResult = TypedDict("SmsSendResult", {"parts": int})
+PullResult = TypedDict("PullResult", {"name": str, "size": int, "data": str})
+LocationResult = TypedDict(
+    "LocationResult",
+    {
+        "lat": float,
+        "lon": float,
+        "accuracy": float,
+        "time": int,
+        "provider": str,
     },
 )
 PairQrResult = TypedDict("PairQrResult", {"uri": str, "expires": int})
@@ -335,6 +359,22 @@ class ProxyFailedError(DroidlineError):
     code = "PROXY_FAILED"
     http = 502
     retryable = True
+
+
+class SendFailedError(DroidlineError):
+    """The phone or the network refused the message. reason says why, such as no_service or radio_off."""
+
+    code = "SEND_FAILED"
+    http = 502
+    retryable = True
+
+
+class LocationOffError(DroidlineError):
+    """Turn on location in the phone's quick settings or Settings, then try again."""
+
+    code = "LOCATION_OFF"
+    http = 409
+    retryable = False
 
 
 class UnknownCmdError(DroidlineError):
@@ -460,6 +500,8 @@ ERRORS: Dict[str, Type[DroidlineError]] = {
     "APP_NOT_FOUND": AppNotFoundError,
     "ACTIVITY_BLOCKED": ActivityBlockedError,
     "PROXY_FAILED": ProxyFailedError,
+    "SEND_FAILED": SendFailedError,
+    "LOCATION_OFF": LocationOffError,
     "UNKNOWN_CMD": UnknownCmdError,
     "UNSUPPORTED": UnsupportedError,
     "BAD_ARGS": BadArgsError,
@@ -1970,6 +2012,174 @@ class DeviceCommands:
         """
         return cast("List[Contact]", self._run("contacts", "value", {}, query=query, max=max))
 
+    def wait_sms(
+        self,
+        address: Optional[str] = None,
+        contains: Optional[str] = None,
+        timeout: Optional[float] = None,
+    ) -> Sms:
+        """Wait for a new text message and return it.
+
+        Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            address: Only from a number or sender containing this. Spaces and dashes are ignored.
+            contains: Only messages whose text contains this, ignoring case.
+            timeout: Seconds to wait. Default: 60.
+
+        Raises:
+            DroidlineTimeoutError: The action itself timed out. Safe to retry.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.wait_sms(contains="인증번호", timeout=120)
+        """
+        return cast("Sms", self._run(
+            "wait_sms",
+            "value",
+            {},
+            address=address,
+            contains=contains,
+            timeout=timeout,
+        ))
+
+    def sms_send(self, number: str, text: str) -> SmsSendResult:
+        """Send a text message from the phone.
+
+        Optional. Allow sending SMS on the app's Setup tab first. Sends from the phone's default SIM, and your carrier may charge for it. Long text goes out as several parts. Answers after the network accepts every part, or SEND_FAILED. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            number: Phone number to send to.
+            text: Message text.
+
+        Raises:
+            SendFailedError: The phone or the network refused the message. reason says why, such as no_service or radio_off.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.sms_send("01012345678", "On my way")
+        """
+        return cast("SmsSendResult", self._run(
+            "sms_send",
+            "fields",
+            {"number": number, "text": text},
+        ))
+
+    def dial(self, number: str) -> None:
+        """Start a phone call.
+
+        Optional. Allow phone calls on the app's Setup tab first. Opens the phone app already dialing and answers right away; end the call with hang_up. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            number: Phone number to call.
+
+        Raises:
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.dial("01012345678")
+        """
+        self._run("dial", "none", {"number": number})
+
+    def hang_up(self) -> bool:
+        """End the current call, or reject a ringing one.
+
+        Optional, needs the phone permission like dial. Answers false when there was no call. The MCP server lists this tool only when --tools names it.
+
+        Raises:
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.hang_up()
+        """
+        return cast("bool", self._run("hang_up", "value", {}))
+
+    def files(
+        self,
+        path: Optional[str] = None,
+        sort: Optional[Literal["name", "time"]] = None,
+        max: Optional[int] = None,
+    ) -> List[FileEntry]:
+        """List a folder in the phone's shared storage.
+
+        Optional. Allow file access on the app's Setup tab first. Paths are relative to shared storage (/sdcard), such as DCIM/Screenshots or Download, and cannot leave it. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            path: Folder to list. Empty means the top of shared storage. Default: "".
+            sort: name sorts by name, time puts the newest first. Default: "name".
+            max: Most entries to return, up to 1000. Default: 200.
+
+        Raises:
+            BadArgsError: Missing or invalid parameters.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.files("DCIM/Screenshots", sort="time", max=1)
+        """
+        return cast("List[FileEntry]", self._run(
+            "files",
+            "value",
+            {},
+            path=path,
+            sort=sort,
+            max=max,
+        ))
+
+    @overload
+    def pull(self, file: str, path: None = None) -> bytes:
+        ...
+
+    @overload
+    def pull(self, file: str, path: str) -> str:
+        ...
+
+    def pull(self, file: str, path: Optional[str] = None) -> Union[bytes, str]:
+        """Copy a file from the phone's shared storage to the PC.
+
+        Optional, needs file access like files. Up to 32 MB. Without path the SDKs return the bytes and the CLI saves the file under its own name. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            file: File on the phone, relative to shared storage, such as Download/report.pdf.
+            path: Save to this local file.
+
+        Raises:
+            BadArgsError: Missing or invalid parameters.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.pull("Download/report.pdf", "report.pdf")
+        """
+        return cast("Union[bytes, str]", self._save_image("pull", path, {"file": file}))
+
+    def location(
+        self,
+        timeout: Optional[float] = None,
+        max_age: Optional[float] = None,
+    ) -> LocationResult:
+        """The phone's current location.
+
+        Optional. Allow location on the app's Setup tab first, including "Allow all the time", because Droidline asks while it runs in the background. Answers LOCATION_OFF when location is turned off on the phone. The MCP server lists this tool only when --tools names it.
+
+        Args:
+            timeout: Seconds to wait for a new fix. Default: 10.
+            max_age: A fix the phone already has is good enough if it is at most this old. 0 always asks for a new one. Default: 60.
+
+        Raises:
+            DroidlineTimeoutError: The action itself timed out. Safe to retry.
+            LocationOffError: Turn on location in the phone's quick settings or Settings, then try again.
+            NoPermissionError: A permission such as VPN or notification access is missing. The permission name is returned.
+
+        Example:
+            d.location()
+        """
+        return cast("LocationResult", self._run(
+            "location",
+            "fields",
+            {},
+            timeout=timeout,
+            max_age=max_age,
+        ))
+
 
 class ClientCommands:
     """Commands the PC server answers itself. Droidline mixes these in and implements _run."""
@@ -2111,6 +2321,7 @@ __all__ = [
     "Sms",
     "Call",
     "Contact",
+    "FileEntry",
     "DumpResult",
     "ScreenshotResult",
     "FindImageResult",
@@ -2141,6 +2352,9 @@ __all__ = [
     "BatchResult",
     "ProxyResult",
     "ProxyCheckResult",
+    "SmsSendResult",
+    "PullResult",
+    "LocationResult",
     "PairQrResult",
     "ServerInfoResult",
     "ChromeGoResult",
@@ -2154,6 +2368,8 @@ __all__ = [
     "AppNotFoundError",
     "ActivityBlockedError",
     "ProxyFailedError",
+    "SendFailedError",
+    "LocationOffError",
     "UnknownCmdError",
     "UnsupportedError",
     "BadArgsError",

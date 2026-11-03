@@ -22,7 +22,7 @@ import (
 type Options struct {
 	Addr, Token, Device, Home string
 	// Tools, when set, are the only tools listed and callable. ReadOnly keeps only the tools that never act on the
-	// phone. Both are off by default; with both, a tool must pass each. Opt-in tools (sms, calls, contacts) need Tools to name them.
+	// phone. Both are off by default; with both, a tool must pass each. Opt-in tools (sms, calls, location and the like) need Tools to name them.
 	Tools    []string
 	ReadOnly bool
 }
@@ -32,7 +32,7 @@ var readOnlyTools = map[string]bool{
 	"dump": true, "screenshot": true, "find_image": true, "ocr": true, "ocr_find": true,
 	"wait": true, "wait_gone": true, "wait_idle": true, "find": true, "wait_image_gone": true,
 	"info": true, "devices": true, "apps": true, "notifications": true, "wait_notification": true,
-	"sms": true, "calls": true, "contacts": true,
+	"sms": true, "calls": true, "contacts": true, "wait_sms": true, "files": true, "pull": true, "location": true,
 }
 
 func isReadOnly(c *spec.Command) bool { return c.Condition || readOnlyTools[c.Name] }
@@ -258,7 +258,7 @@ func (s *session) tools() []any {
 		}
 		tool := map[string]any{"name": toolName(c.Name), "description": desc, "inputSchema": schema}
 		readOnly := isReadOnly(c)
-		destructive := c.Name == "clear_data" || c.Name == "proxy" || c.Name == "batch"
+		destructive := c.Name == "clear_data" || c.Name == "proxy" || c.Name == "batch" || c.Name == "sms_send" || c.Name == "dial" || c.Name == "hang_up"
 		tool["annotations"] = map[string]any{"readOnlyHint": readOnly, "destructiveHint": destructive, "openWorldHint": false}
 		out = append(out, tool)
 	}

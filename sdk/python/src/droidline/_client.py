@@ -475,7 +475,8 @@ class Device(DeviceCommands):
         return Element(self, found)
 
     def _save_image(self, cmd: str, path: Optional[str], required: Dict[str, Any], /, **optional: Any) -> Any:
-        if path is not None and optional.get("format") is None:
+        # Only screenshot has a format; pull saves the bytes as they are.
+        if path is not None and "format" in optional and optional["format"] is None:
             ext = os.path.splitext(path)[1].lower()
             optional["format"] = {".png": "png", ".jpg": "jpeg", ".jpeg": "jpeg"}.get(ext)
         result = self._run(cmd, "fields", required, **optional)

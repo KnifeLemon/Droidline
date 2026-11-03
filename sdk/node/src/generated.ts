@@ -167,6 +167,15 @@ export interface Contact {
   [field: string]: any;
 }
 
+export interface FileEntry {
+  name?: any;
+  path?: any;
+  size?: any;
+  time?: any;
+  dir?: any;
+  [field: string]: any;
+}
+
 /** Error codes the server can answer with, from spec/commands.json. */
 export type ErrorCode =
   | "NOT_FOUND"
@@ -179,6 +188,8 @@ export type ErrorCode =
   | "APP_NOT_FOUND"
   | "ACTIVITY_BLOCKED"
   | "PROXY_FAILED"
+  | "SEND_FAILED"
+  | "LOCATION_OFF"
   | "UNKNOWN_CMD"
   | "UNSUPPORTED"
   | "BAD_ARGS"
@@ -216,6 +227,10 @@ export const ERRORS: Readonly<Record<ErrorCode, { readonly http: number; readonl
   ACTIVITY_BLOCKED: { http: 422, retryable: false },
   /** Upstream connection or authentication failed. reason is auth, timeout, refused or protocol. */
   PROXY_FAILED: { http: 502, retryable: true },
+  /** The phone or the network refused the message. reason says why, such as no_service or radio_off. */
+  SEND_FAILED: { http: 502, retryable: true },
+  /** Turn on location in the phone's quick settings or Settings, then try again. */
+  LOCATION_OFF: { http: 409, retryable: false },
   /** Command not supported. The agent version is returned. */
   UNKNOWN_CMD: { http: 404, retryable: false },
   /** The phone's Android version cannot do this without ADB or root. */
@@ -739,6 +754,49 @@ export interface ContactsOptions {
   query?: string;
   /** Most contacts to return, up to 500. @default 50 */
   max?: number;
+}
+
+export interface WaitSmsOptions {
+  /** Only from a number or sender containing this. Spaces and dashes are ignored. */
+  address?: string;
+  /** Only messages whose text contains this, ignoring case. */
+  contains?: string;
+  /** Seconds to wait. @default 60 */
+  timeout?: number;
+}
+
+export interface SmsSendResult {
+  parts: number;
+}
+
+export interface FilesOptions {
+  /** Folder to list. Empty means the top of shared storage. @default "" */
+  path?: string;
+  /** name sorts by name, time puts the newest first. @default "name" */
+  sort?: "name" | "time";
+  /** Most entries to return, up to 1000. @default 200 */
+  max?: number;
+}
+
+export interface PullResult {
+  name: string;
+  size: number;
+  data: string;
+}
+
+export interface LocationOptions {
+  /** Seconds to wait for a new fix. @default 10 */
+  timeout?: number;
+  /** A fix the phone already has is good enough if it is at most this old. 0 always asks for a new one. @default 60 */
+  max_age?: number;
+}
+
+export interface LocationResult {
+  lat: number;
+  lon: number;
+  accuracy: number;
+  time: number;
+  provider: string;
 }
 
 export interface ChromeGoOptions {
@@ -5022,6 +5080,316 @@ export abstract class DeviceCommands {
   contacts(query?: string, max?: number, opts?: ContactsOptions): Promise<Array<Contact>>;
   async contacts(...args: unknown[]): Promise<Array<Contact>> {
     return this._run("contacts", "value", collect("contacts", args, [], ["query", "max"]));
+  }
+
+  /**
+   * Wait for a new text message and return it.
+   *
+   * Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+   *
+   * @param address Only from a number or sender containing this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param timeout Seconds to wait. Default: 60.
+   * @param opts Optional parameters by name, see WaitSmsOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_sms({ contains: "인증번호", timeout: 120 })
+   */
+  wait_sms(opts?: WaitSmsOptions): Promise<Sms>;
+  /**
+   * Wait for a new text message and return it.
+   *
+   * Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+   *
+   * @param address Only from a number or sender containing this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param timeout Seconds to wait. Default: 60.
+   * @param opts Optional parameters by name, see WaitSmsOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_sms({ contains: "인증번호", timeout: 120 })
+   */
+  wait_sms(address?: string, opts?: WaitSmsOptions): Promise<Sms>;
+  /**
+   * Wait for a new text message and return it.
+   *
+   * Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+   *
+   * @param address Only from a number or sender containing this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param timeout Seconds to wait. Default: 60.
+   * @param opts Optional parameters by name, see WaitSmsOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_sms({ contains: "인증번호", timeout: 120 })
+   */
+  wait_sms(address?: string, contains?: string, opts?: WaitSmsOptions): Promise<Sms>;
+  /**
+   * Wait for a new text message and return it.
+   *
+   * Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+   *
+   * @param address Only from a number or sender containing this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param timeout Seconds to wait. Default: 60.
+   * @param opts Optional parameters by name, see WaitSmsOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_sms({ contains: "인증번호", timeout: 120 })
+   */
+  wait_sms(address?: string, contains?: string, timeout?: number, opts?: WaitSmsOptions): Promise<Sms>;
+  async wait_sms(...args: unknown[]): Promise<Sms> {
+    return this._run("wait_sms", "value", collect("wait_sms", args, [], ["address", "contains", "timeout"]));
+  }
+
+  /**
+   * Wait for a new text message and return it.
+   *
+   * Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+   *
+   * @param address Only from a number or sender containing this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param timeout Seconds to wait. Default: 60.
+   * @param opts Optional parameters by name, see WaitSmsOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_sms({ contains: "인증번호", timeout: 120 })
+   * @alias wait_sms
+   */
+  waitSms(opts?: WaitSmsOptions): Promise<Sms>;
+  /**
+   * Wait for a new text message and return it.
+   *
+   * Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+   *
+   * @param address Only from a number or sender containing this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param timeout Seconds to wait. Default: 60.
+   * @param opts Optional parameters by name, see WaitSmsOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_sms({ contains: "인증번호", timeout: 120 })
+   * @alias wait_sms
+   */
+  waitSms(address?: string, opts?: WaitSmsOptions): Promise<Sms>;
+  /**
+   * Wait for a new text message and return it.
+   *
+   * Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+   *
+   * @param address Only from a number or sender containing this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param timeout Seconds to wait. Default: 60.
+   * @param opts Optional parameters by name, see WaitSmsOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_sms({ contains: "인증번호", timeout: 120 })
+   * @alias wait_sms
+   */
+  waitSms(address?: string, contains?: string, opts?: WaitSmsOptions): Promise<Sms>;
+  /**
+   * Wait for a new text message and return it.
+   *
+   * Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.
+   *
+   * @param address Only from a number or sender containing this. Spaces and dashes are ignored.
+   * @param contains Only messages whose text contains this, ignoring case.
+   * @param timeout Seconds to wait. Default: 60.
+   * @param opts Optional parameters by name, see WaitSmsOptions.
+   * @throws {DroidlineError} with code TIMEOUT, NO_PERMISSION.
+   * @example await d.wait_sms({ contains: "인증번호", timeout: 120 })
+   * @alias wait_sms
+   */
+  waitSms(address?: string, contains?: string, timeout?: number, opts?: WaitSmsOptions): Promise<Sms>;
+  async waitSms(...args: unknown[]): Promise<Sms> {
+    return this._run("wait_sms", "value", collect("wait_sms", args, [], ["address", "contains", "timeout"]));
+  }
+
+  /**
+   * Send a text message from the phone.
+   *
+   * Optional. Allow sending SMS on the app's Setup tab first. Sends from the phone's default SIM, and your carrier may charge for it. Long text goes out as several parts. Answers after the network accepts every part, or SEND_FAILED. The MCP server lists this tool only when --tools names it.
+   *
+   * @param number Phone number to send to.
+   * @param text Message text.
+   * @throws {DroidlineError} with code SEND_FAILED, NO_PERMISSION.
+   * @example await d.sms_send("01012345678", "On my way")
+   */
+  sms_send(number: string, text: string): Promise<SmsSendResult>;
+  async sms_send(...args: unknown[]): Promise<SmsSendResult> {
+    return this._run("sms_send", "fields", collect("sms_send", args, ["number", "text"], []));
+  }
+
+  /**
+   * Send a text message from the phone.
+   *
+   * Optional. Allow sending SMS on the app's Setup tab first. Sends from the phone's default SIM, and your carrier may charge for it. Long text goes out as several parts. Answers after the network accepts every part, or SEND_FAILED. The MCP server lists this tool only when --tools names it.
+   *
+   * @param number Phone number to send to.
+   * @param text Message text.
+   * @throws {DroidlineError} with code SEND_FAILED, NO_PERMISSION.
+   * @example await d.sms_send("01012345678", "On my way")
+   * @alias sms_send
+   */
+  smsSend(number: string, text: string): Promise<SmsSendResult>;
+  async smsSend(...args: unknown[]): Promise<SmsSendResult> {
+    return this._run("sms_send", "fields", collect("sms_send", args, ["number", "text"], []));
+  }
+
+  /**
+   * Start a phone call.
+   *
+   * Optional. Allow phone calls on the app's Setup tab first. Opens the phone app already dialing and answers right away; end the call with hang_up. The MCP server lists this tool only when --tools names it.
+   *
+   * @param number Phone number to call.
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.dial("01012345678")
+   */
+  dial(number: string): Promise<void>;
+  async dial(...args: unknown[]): Promise<void> {
+    return this._run("dial", "none", collect("dial", args, ["number"], []));
+  }
+
+  /**
+   * End the current call, or reject a ringing one.
+   *
+   * Optional, needs the phone permission like dial. Answers false when there was no call. The MCP server lists this tool only when --tools names it.
+   *
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.hang_up()
+   */
+  hang_up(): Promise<boolean>;
+  async hang_up(...args: unknown[]): Promise<boolean> {
+    return this._run("hang_up", "value", collect("hang_up", args, [], []));
+  }
+
+  /**
+   * End the current call, or reject a ringing one.
+   *
+   * Optional, needs the phone permission like dial. Answers false when there was no call. The MCP server lists this tool only when --tools names it.
+   *
+   * @throws {DroidlineError} with code NO_PERMISSION.
+   * @example await d.hang_up()
+   * @alias hang_up
+   */
+  hangUp(): Promise<boolean>;
+  async hangUp(...args: unknown[]): Promise<boolean> {
+    return this._run("hang_up", "value", collect("hang_up", args, [], []));
+  }
+
+  /**
+   * List a folder in the phone's shared storage.
+   *
+   * Optional. Allow file access on the app's Setup tab first. Paths are relative to shared storage (/sdcard), such as DCIM/Screenshots or Download, and cannot leave it. The MCP server lists this tool only when --tools names it.
+   *
+   * @param path Folder to list. Empty means the top of shared storage. Default: "".
+   * @param sort name sorts by name, time puts the newest first. Default: "name".
+   * @param max Most entries to return, up to 1000. Default: 200.
+   * @param opts Optional parameters by name, see FilesOptions.
+   * @throws {DroidlineError} with code BAD_ARGS, NO_PERMISSION.
+   * @example await d.files("DCIM/Screenshots", { sort: "time", max: 1 })
+   */
+  files(opts?: FilesOptions): Promise<Array<FileEntry>>;
+  /**
+   * List a folder in the phone's shared storage.
+   *
+   * Optional. Allow file access on the app's Setup tab first. Paths are relative to shared storage (/sdcard), such as DCIM/Screenshots or Download, and cannot leave it. The MCP server lists this tool only when --tools names it.
+   *
+   * @param path Folder to list. Empty means the top of shared storage. Default: "".
+   * @param sort name sorts by name, time puts the newest first. Default: "name".
+   * @param max Most entries to return, up to 1000. Default: 200.
+   * @param opts Optional parameters by name, see FilesOptions.
+   * @throws {DroidlineError} with code BAD_ARGS, NO_PERMISSION.
+   * @example await d.files("DCIM/Screenshots", { sort: "time", max: 1 })
+   */
+  files(path?: string, opts?: FilesOptions): Promise<Array<FileEntry>>;
+  /**
+   * List a folder in the phone's shared storage.
+   *
+   * Optional. Allow file access on the app's Setup tab first. Paths are relative to shared storage (/sdcard), such as DCIM/Screenshots or Download, and cannot leave it. The MCP server lists this tool only when --tools names it.
+   *
+   * @param path Folder to list. Empty means the top of shared storage. Default: "".
+   * @param sort name sorts by name, time puts the newest first. Default: "name".
+   * @param max Most entries to return, up to 1000. Default: 200.
+   * @param opts Optional parameters by name, see FilesOptions.
+   * @throws {DroidlineError} with code BAD_ARGS, NO_PERMISSION.
+   * @example await d.files("DCIM/Screenshots", { sort: "time", max: 1 })
+   */
+  files(path?: string, sort?: "name" | "time", opts?: FilesOptions): Promise<Array<FileEntry>>;
+  /**
+   * List a folder in the phone's shared storage.
+   *
+   * Optional. Allow file access on the app's Setup tab first. Paths are relative to shared storage (/sdcard), such as DCIM/Screenshots or Download, and cannot leave it. The MCP server lists this tool only when --tools names it.
+   *
+   * @param path Folder to list. Empty means the top of shared storage. Default: "".
+   * @param sort name sorts by name, time puts the newest first. Default: "name".
+   * @param max Most entries to return, up to 1000. Default: 200.
+   * @param opts Optional parameters by name, see FilesOptions.
+   * @throws {DroidlineError} with code BAD_ARGS, NO_PERMISSION.
+   * @example await d.files("DCIM/Screenshots", { sort: "time", max: 1 })
+   */
+  files(path?: string, sort?: "name" | "time", max?: number, opts?: FilesOptions): Promise<Array<FileEntry>>;
+  async files(...args: unknown[]): Promise<Array<FileEntry>> {
+    return this._run("files", "value", collect("files", args, [], ["path", "sort", "max"]));
+  }
+
+  /**
+   * Copy a file from the phone's shared storage to the PC.
+   *
+   * Optional, needs file access like files. Up to 32 MB. Without path the SDKs return the bytes and the CLI saves the file under its own name. The MCP server lists this tool only when --tools names it.
+   *
+   * @param file File on the phone, relative to shared storage, such as Download/report.pdf.
+   * @param path Save to this local file.
+   * @throws {DroidlineError} with code BAD_ARGS, NO_PERMISSION.
+   * @example await d.pull("Download/report.pdf", "report.pdf")
+   */
+  pull(file: string): Promise<Buffer>;
+  /**
+   * Copy a file from the phone's shared storage to the PC.
+   *
+   * Optional, needs file access like files. Up to 32 MB. Without path the SDKs return the bytes and the CLI saves the file under its own name. The MCP server lists this tool only when --tools names it.
+   *
+   * @param file File on the phone, relative to shared storage, such as Download/report.pdf.
+   * @param path Save to this local file.
+   * @throws {DroidlineError} with code BAD_ARGS, NO_PERMISSION.
+   * @example await d.pull("Download/report.pdf", "report.pdf")
+   */
+  pull(file: string, path: string): Promise<string>;
+  async pull(...args: unknown[]): Promise<Buffer | string> {
+    return this._saveImage("pull", collect("pull", args, ["file"], ["path"]));
+  }
+
+  /**
+   * The phone's current location.
+   *
+   * Optional. Allow location on the app's Setup tab first, including "Allow all the time", because Droidline asks while it runs in the background. Answers LOCATION_OFF when location is turned off on the phone. The MCP server lists this tool only when --tools names it.
+   *
+   * @param timeout Seconds to wait for a new fix. Default: 10.
+   * @param max_age A fix the phone already has is good enough if it is at most this old. 0 always asks for a new one. Default: 60.
+   * @param opts Optional parameters by name, see LocationOptions.
+   * @throws {DroidlineError} with code TIMEOUT, LOCATION_OFF, NO_PERMISSION.
+   * @example await d.location()
+   */
+  location(opts?: LocationOptions): Promise<LocationResult>;
+  /**
+   * The phone's current location.
+   *
+   * Optional. Allow location on the app's Setup tab first, including "Allow all the time", because Droidline asks while it runs in the background. Answers LOCATION_OFF when location is turned off on the phone. The MCP server lists this tool only when --tools names it.
+   *
+   * @param timeout Seconds to wait for a new fix. Default: 10.
+   * @param max_age A fix the phone already has is good enough if it is at most this old. 0 always asks for a new one. Default: 60.
+   * @param opts Optional parameters by name, see LocationOptions.
+   * @throws {DroidlineError} with code TIMEOUT, LOCATION_OFF, NO_PERMISSION.
+   * @example await d.location()
+   */
+  location(timeout?: number, opts?: LocationOptions): Promise<LocationResult>;
+  /**
+   * The phone's current location.
+   *
+   * Optional. Allow location on the app's Setup tab first, including "Allow all the time", because Droidline asks while it runs in the background. Answers LOCATION_OFF when location is turned off on the phone. The MCP server lists this tool only when --tools names it.
+   *
+   * @param timeout Seconds to wait for a new fix. Default: 10.
+   * @param max_age A fix the phone already has is good enough if it is at most this old. 0 always asks for a new one. Default: 60.
+   * @param opts Optional parameters by name, see LocationOptions.
+   * @throws {DroidlineError} with code TIMEOUT, LOCATION_OFF, NO_PERMISSION.
+   * @example await d.location()
+   */
+  location(timeout?: number, max_age?: number, opts?: LocationOptions): Promise<LocationResult>;
+  async location(...args: unknown[]): Promise<LocationResult> {
+    return this._run("location", "fields", collect("location", args, [], ["timeout", "max_age"]));
   }
 }
 

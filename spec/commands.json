@@ -107,6 +107,12 @@
     { "code": "PROXY_FAILED", "http": 502, "retryable": true,
       "msg": { "en": "Upstream proxy failed: {reason}", "ko": "업스트림 프록시 실패: {reason}", "zh": "上游代理失败：{reason}" },
       "doc": { "en": "Upstream connection or authentication failed. reason is auth, timeout, refused or protocol.", "ko": "업스트림 연결·인증 실패. reason은 auth, timeout, refused, protocol 중 하나", "zh": "上游连接或认证失败。reason 为 auth、timeout、refused 或 protocol" } },
+    { "code": "SEND_FAILED", "http": 502, "retryable": true,
+      "msg": {"en": "The message was not sent: {reason}", "ko": "문자를 보내지 못했습니다: {reason}", "zh": "短信未发送：{reason}"},
+      "doc": {"en": "The phone or the network refused the message. reason says why, such as no_service or radio_off.", "ko": "폰이나 네트워크가 문자를 거절함. reason에 no_service, radio_off 같은 이유가 들어감", "zh": "手机或网络拒绝了短信。reason 说明原因，例如 no_service 或 radio_off"} },
+    { "code": "LOCATION_OFF", "http": 409, "retryable": false,
+      "msg": {"en": "Location is turned off on the phone", "ko": "폰의 위치가 꺼져 있습니다", "zh": "手机的位置信息已关闭"},
+      "doc": {"en": "Turn on location in the phone's quick settings or Settings, then try again.", "ko": "폰의 빠른 설정이나 설정에서 위치를 켠 뒤 다시 시도하세요", "zh": "在手机的快捷设置或设置中打开位置信息后重试"} },
     { "code": "UNKNOWN_CMD", "http": 404, "retryable": false,
       "msg": { "en": "Unknown command {cmd}. Agent version {agent}", "ko": "알 수 없는 명령 {cmd}. 에이전트 버전 {agent}", "zh": "未知命令 {cmd}。代理版本 {agent}" },
       "doc": { "en": "Command not supported. The agent version is returned.", "ko": "지원하지 않는 명령. 에이전트 버전 반환", "zh": "不支持的命令，返回代理版本" } },
@@ -706,6 +712,74 @@
       "returns": { "kind": "value", "type": "list<contact>" },
       "example": "contacts(\"Kim\")" },
 
+    { "name": "wait_sms", "group": "personal", "phase": 3, "scope": "device", "runs_on": "server", "requires": ["sms"], "mcp_opt_in": true,
+      "summary": {"en": "Wait for a new text message and return it", "ko": "새 문자가 올 때까지 기다렸다가 반환", "zh": "等待新短信到达并返回"},
+      "notes": {"en": "Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능이며 sms와 같은 문자 권한이 필요합니다. PC가 1초마다 폰의 받은 문자함을 확인하며, 호출한 뒤에 도착한 문자만 해당됩니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能，与 sms 一样需要短信权限。电脑每秒检查一次手机的收件箱，只算调用之后到达的短信。MCP 服务器只有在 --tools 写了这个名称时才列出此工具"},
+      "params": [
+        { "name": "address", "type": "string", "doc": {"en": "Only from a number or sender containing this. Spaces and dashes are ignored", "ko": "번호나 보낸 사람에 이 글자가 들어간 것만. 공백과 -는 무시", "zh": "只要号码或发件人包含此文字的。忽略空格和 -"} },
+        { "name": "contains", "type": "string", "doc": {"en": "Only messages whose text contains this, ignoring case", "ko": "본문에 이 글자가 들어간 것만, 대소문자 무시", "zh": "只要正文包含此文字的，不区分大小写"} },
+        { "name": "timeout", "type": "number", "default": 60, "unit": "s", "doc": {"en": "Seconds to wait", "ko": "기다리는 초", "zh": "等待秒数"} } ],
+      "returns": { "kind": "value", "type": "sms" },
+      "errors": ["TIMEOUT", "NO_PERMISSION"],
+      "example": "wait_sms(contains=\"인증번호\", timeout=120)" },
+
+    { "name": "sms_send", "group": "personal", "phase": 3, "scope": "device", "requires": ["sms_send"], "mcp_opt_in": true,
+      "summary": {"en": "Send a text message from the phone", "ko": "폰에서 문자 보내기", "zh": "从手机发送短信"},
+      "notes": {"en": "Optional. Allow sending SMS on the app's Setup tab first. Sends from the phone's default SIM, and your carrier may charge for it. Long text goes out as several parts. Answers after the network accepts every part, or SEND_FAILED. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능입니다. 먼저 앱의 설정 탭에서 문자 보내기를 허용하세요. 폰의 기본 SIM으로 보내며 통신사 요금이 붙을 수 있습니다. 긴 글은 여러 개로 나눠 보냅니다. 네트워크가 모든 조각을 받으면 답하고, 실패하면 SEND_FAILED로 답합니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能。请先在应用的设置页允许发送短信。使用手机的默认 SIM 发送，运营商可能收费。长文本会分成几段发送。网络接受全部分段后才返回，失败时返回 SEND_FAILED。MCP 服务器只有在 --tools 写了这个名称时才列出此工具"},
+      "params": [
+        { "name": "number", "type": "string", "required": true, "doc": {"en": "Phone number to send to", "ko": "받는 번호", "zh": "接收号码"} },
+        { "name": "text", "type": "string", "required": true, "doc": {"en": "Message text", "ko": "보낼 내용", "zh": "短信内容"} } ],
+      "returns": { "kind": "fields", "fields": [ { "name": "parts", "type": "int" } ] },
+      "errors": ["SEND_FAILED", "NO_PERMISSION"],
+      "example": "sms_send(\"01012345678\", \"On my way\")" },
+
+    { "name": "dial", "group": "personal", "phase": 3, "scope": "device", "requires": ["phone"], "mcp_opt_in": true,
+      "summary": {"en": "Start a phone call", "ko": "전화 걸기", "zh": "拨打电话"},
+      "notes": {"en": "Optional. Allow phone calls on the app's Setup tab first. Opens the phone app already dialing and answers right away; end the call with hang_up. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능입니다. 먼저 앱의 설정 탭에서 전화를 허용하세요. 전화 앱이 바로 발신을 시작하고 곧장 답합니다. 끊으려면 hang_up을 쓰세요. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能。请先在应用的设置页允许电话。电话应用会立即开始拨号并马上返回；用 hang_up 挂断。MCP 服务器只有在 --tools 写了这个名称时才列出此工具"},
+      "params": [ { "name": "number", "type": "string", "required": true, "doc": {"en": "Phone number to call", "ko": "걸 번호", "zh": "要拨打的号码"} } ],
+      "returns": { "kind": "none" },
+      "errors": ["NO_PERMISSION"],
+      "example": "dial(\"01012345678\")" },
+
+    { "name": "hang_up", "group": "personal", "phase": 3, "scope": "device", "requires": ["phone"], "mcp_opt_in": true,
+      "summary": {"en": "End the current call, or reject a ringing one", "ko": "통화 중인 전화를 끊거나 울리는 전화를 거절", "zh": "挂断当前通话，或拒接正在响铃的来电"},
+      "notes": {"en": "Optional, needs the phone permission like dial. Answers false when there was no call. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능이며 dial과 같은 전화 권한이 필요합니다. 통화가 없었으면 false로 답합니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能，与 dial 一样需要电话权限。没有通话时返回 false。MCP 服务器只有在 --tools 写了这个名称时才列出此工具"},
+      "params": [],
+      "returns": { "kind": "value", "type": "bool" },
+      "errors": ["NO_PERMISSION"],
+      "example": "hang_up()" },
+
+    { "name": "files", "group": "personal", "phase": 3, "scope": "device", "requires": ["files"], "mcp_opt_in": true,
+      "summary": {"en": "List a folder in the phone's shared storage", "ko": "폰 공용 저장소의 폴더 목록", "zh": "列出手机共享存储中的文件夹"},
+      "notes": {"en": "Optional. Allow file access on the app's Setup tab first. Paths are relative to shared storage (/sdcard), such as DCIM/Screenshots or Download, and cannot leave it. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능입니다. 먼저 앱의 설정 탭에서 파일 접근을 허용하세요. 경로는 공용 저장소(/sdcard) 기준이며 DCIM/Screenshots나 Download처럼 씁니다. 공용 저장소 밖으로는 나갈 수 없습니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能。请先在应用的设置页允许文件访问。路径相对于共享存储（/sdcard），例如 DCIM/Screenshots 或 Download，不能超出共享存储。MCP 服务器只有在 --tools 写了这个名称时才列出此工具"},
+      "params": [
+        { "name": "path", "type": "string", "default": "", "doc": {"en": "Folder to list. Empty means the top of shared storage", "ko": "목록을 볼 폴더. 비우면 공용 저장소 맨 위", "zh": "要列出的文件夹。留空表示共享存储的顶层"} },
+        { "name": "sort", "type": "string", "enum": ["name", "time"], "default": "name", "doc": {"en": "name sorts by name, time puts the newest first", "ko": "name은 이름순, time은 최신순", "zh": "name 按名称排序，time 最新的排在前面"} },
+        { "name": "max", "type": "int", "default": 200, "doc": {"en": "Most entries to return, up to 1000", "ko": "돌려줄 최대 개수, 1000까지", "zh": "最多返回的条数，最大 1000"} } ],
+      "returns": { "kind": "value", "type": "list<file_entry>" },
+      "errors": ["BAD_ARGS", "NO_PERMISSION"],
+      "example": "files(\"DCIM/Screenshots\", sort=\"time\", max=1)" },
+
+    { "name": "pull", "group": "personal", "phase": 3, "scope": "device", "requires": ["files"], "mcp_opt_in": true, "sdk_save": "image",
+      "summary": {"en": "Copy a file from the phone's shared storage to the PC", "ko": "폰 공용 저장소의 파일을 PC로 가져오기", "zh": "把手机共享存储中的文件复制到电脑"},
+      "notes": {"en": "Optional, needs file access like files. Up to 32 MB. Without path the SDKs return the bytes and the CLI saves the file under its own name. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능이며 files와 같은 파일 접근 권한이 필요합니다. 32MB까지 됩니다. path가 없으면 SDK는 바이트를 돌려주고, CLI는 원래 이름으로 저장합니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能，与 files 一样需要文件访问权限。最大 32 MB。不传 path 时，SDK 返回字节，CLI 按原文件名保存。MCP 服务器只有在 --tools 写了这个名称时才列出此工具"},
+      "params": [
+        { "name": "file", "type": "string", "required": true, "doc": {"en": "File on the phone, relative to shared storage, such as Download/report.pdf", "ko": "폰의 파일, 공용 저장소 기준. 예: Download/report.pdf", "zh": "手机上的文件，相对于共享存储，例如 Download/report.pdf"} },
+        { "name": "path", "type": "string", "client_only": true, "doc": {"en": "Save to this local file", "ko": "이 로컬 파일로 저장", "zh": "保存到此本地文件"} } ],
+      "returns": { "kind": "fields", "fields": [ { "name": "name", "type": "string" }, { "name": "size", "type": "int" }, { "name": "data", "type": "base64" } ] },
+      "errors": ["BAD_ARGS", "NO_PERMISSION"],
+      "example": "pull(\"Download/report.pdf\", \"report.pdf\")" },
+
+    { "name": "location", "group": "personal", "phase": 3, "scope": "device", "requires": ["location"], "mcp_opt_in": true,
+      "summary": {"en": "The phone's current location", "ko": "폰의 현재 위치", "zh": "手机的当前位置"},
+      "notes": {"en": "Optional. Allow location on the app's Setup tab first, including \"Allow all the time\", because Droidline asks while it runs in the background. Answers LOCATION_OFF when location is turned off on the phone. The MCP server lists this tool only when --tools names it.", "ko": "선택 기능입니다. 먼저 앱의 설정 탭에서 위치를 허용하세요. Droidline은 백그라운드에서 위치를 묻기 때문에 \"항상 허용\"까지 골라야 합니다. 폰의 위치가 꺼져 있으면 LOCATION_OFF로 답합니다. MCP 서버는 --tools에 이 이름을 넣었을 때만 이 도구를 보여 줍니다", "zh": "可选功能。请先在应用的设置页允许位置信息，并选择“始终允许”，因为 Droidline 在后台请求位置。手机的位置信息关闭时返回 LOCATION_OFF。MCP 服务器只有在 --tools 写了这个名称时才列出此工具"},
+      "params": [
+        { "name": "timeout", "type": "number", "default": 10, "unit": "s", "doc": {"en": "Seconds to wait for a new fix", "ko": "새 위치를 기다리는 초", "zh": "等待新定位的秒数"} },
+        { "name": "max_age", "type": "number", "default": 60, "unit": "s", "doc": {"en": "A fix the phone already has is good enough if it is at most this old. 0 always asks for a new one", "ko": "폰이 이미 가진 위치가 이 초보다 새것이면 그대로 씀. 0이면 항상 새로 구함", "zh": "手机已有的定位不超过这么多秒时直接使用。0 表示总是重新定位"} } ],
+      "returns": { "kind": "fields", "fields": [ { "name": "lat", "type": "number" }, { "name": "lon", "type": "number" }, { "name": "accuracy", "type": "number" }, { "name": "time", "type": "int" }, { "name": "provider", "type": "string" } ] },
+      "errors": ["TIMEOUT", "LOCATION_OFF", "NO_PERMISSION"],
+      "example": "location()" },
+
     { "name": "devices", "group": "server", "phase": 1, "scope": "server",
       "summary": { "en": "Paired devices with online state and route", "ko": "등록된 기기와 온라인 상태, 접속 경로", "zh": "已配对设备及其在线状态和连接方式" },
       "params": [],
@@ -799,6 +873,7 @@
     "app": { "fields": ["package", "label", "version", "system"] },
     "sms": { "fields": ["id", "address", "text", "time", "box", "read", "mms"] },
     "call": { "fields": ["id", "number", "name", "type", "time", "duration"] },
-    "contact": { "fields": ["id", "name", "numbers", "emails"] }
+    "contact": { "fields": ["id", "name", "numbers", "emails"] },
+    "file_entry": { "fields": ["name", "path", "size", "time", "dir"] }
   }
 }

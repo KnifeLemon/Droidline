@@ -156,7 +156,8 @@ public partial class Device : IDisposable, IAsyncDisposable
 
     internal async Task<byte[]> SaveImageAsync(string cmd, string? path, Params args, CancellationToken cancellationToken)
     {
-        if (path is not null && !args.ContainsKey("format"))
+        // Only screenshot has a format; pull saves the bytes as they are.
+        if (path is not null && cmd == "screenshot" && !args.ContainsKey("format"))
         {
             var ext = Path.GetExtension(path).ToLowerInvariant();
             args.Opt("format", ext == ".png" ? "png" : ext is ".jpg" or ".jpeg" ? "jpeg" : null);

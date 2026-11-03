@@ -253,7 +253,8 @@ func buildRequest(sp *spec.Spec, cmd *spec.Command, aliasBy, name string, args [
 				val = args[i]
 			}
 		}
-		if p.Name == "path" {
+		// Only a client-only path is a local file; files has a path on the phone.
+		if p.Name == "path" && p.ClientOnly {
 			localPath = val
 			continue
 		}
@@ -295,7 +296,7 @@ func buildRequest(sp *spec.Spec, cmd *spec.Command, aliasBy, name string, args [
 			req[p.Name] = pairs
 			continue
 		}
-		if p.Name == "path" {
+		if p.Name == "path" && p.ClientOnly {
 			localPath = raw
 			continue
 		}
@@ -305,7 +306,7 @@ func buildRequest(sp *spec.Spec, cmd *spec.Command, aliasBy, name string, args [
 		}
 		req[p.Name] = v
 	}
-	if cmd.SDKSave == "image" && localPath != "" {
+	if cmd.SDKSave == "image" && localPath != "" && cmd.Param("format") != nil {
 		if _, set := req["format"]; !set {
 			ext := strings.ToLower(filepath.Ext(localPath))
 			if ext == ".png" {
@@ -331,6 +332,11 @@ func printResult(cmd *spec.Command, res map[string]any, localPath string) error 
 		if err != nil {
 			return err
 		}
+		// pull answers with the file's name; screenshot does not.
+		name, _ := res["name"].(string)
+		if localPath == "" && name != "" {
+			localPath = filepath.Base(name)
+		}
 		if localPath == "" {
 			ext := ".jpg"
 			if res["format"] == "png" {
@@ -341,7 +347,11 @@ func printResult(cmd *spec.Command, res map[string]any, localPath string) error 
 		if err := os.WriteFile(localPath, img, 0o644); err != nil {
 			return err
 		}
-		fmt.Printf("%s (%vx%v)\n", localPath, res["width"], res["height"])
+		if name != "" {
+			fmt.Printf("%s (%d bytes)\n", localPath, len(img))
+		} else {
+			fmt.Printf("%s (%vx%v)\n", localPath, res["width"], res["height"])
+		}
 		return nil
 	case "json":
 		delete(res, "ok")
@@ -467,7 +477,7 @@ func cmdDevices(g globals) error {
 			var missing []string
 			if r, ok := d["ready"].(map[string]any); ok {
 				for k, v := range r {
-					// sms, calls and contacts are opt-in, so leaving them off is not something missing.
+					// Personal data permissions are opt-in, so leaving them off is not something missing.
 					if v != true && !optInReady[k] {
 						missing = append(missing, k)
 					}
@@ -484,7 +494,7 @@ func cmdDevices(g globals) error {
 	return nil
 }
 
-var optInReady = map[string]bool{"sms": true, "calls": true, "contacts": true}
+var optInReady = map[string]bool{"sms": true, "calls": true, "contacts": true, "sms_send": true, "phone": true, "files": true, "location": true}
 
 func str(v any) string {
 	if v == nil {

@@ -422,6 +422,25 @@ public sealed class Contact : DroidlineObject
     public object? Emails => Get<object>("emails");
 }
 
+/// <summary>A file_entry object from the server.</summary>
+public sealed class FileEntry : DroidlineObject
+{
+    /// <summary>The name field as a plain value, or null when it is missing. Get&lt;T&gt;("name") converts it.</summary>
+    public object? Name => Get<object>("name");
+
+    /// <summary>The path field as a plain value, or null when it is missing. Get&lt;T&gt;("path") converts it.</summary>
+    public object? Path => Get<object>("path");
+
+    /// <summary>The size field as a plain value, or null when it is missing. Get&lt;T&gt;("size") converts it.</summary>
+    public object? Size => Get<object>("size");
+
+    /// <summary>The time field as a plain value, or null when it is missing. Get&lt;T&gt;("time") converts it.</summary>
+    public object? Time => Get<object>("time");
+
+    /// <summary>The dir field as a plain value, or null when it is missing. Get&lt;T&gt;("dir") converts it.</summary>
+    public object? Dir => Get<object>("dir");
+}
+
 /// <summary>The reply of dump.</summary>
 public sealed class DumpResult : DroidlineObject
 {
@@ -739,6 +758,32 @@ public sealed class ProxyCheckResult : DroidlineObject
     public string Error => Get<string>("error")!;
 }
 
+/// <summary>The reply of sms_send.</summary>
+public sealed class SmsSendResult : DroidlineObject
+{
+    /// <summary>The parts field of the reply.</summary>
+    public int Parts => Get<int>("parts");
+}
+
+/// <summary>The reply of location.</summary>
+public sealed class LocationResult : DroidlineObject
+{
+    /// <summary>The lat field of the reply.</summary>
+    public double Lat => Get<double>("lat");
+
+    /// <summary>The lon field of the reply.</summary>
+    public double Lon => Get<double>("lon");
+
+    /// <summary>The accuracy field of the reply.</summary>
+    public double Accuracy => Get<double>("accuracy");
+
+    /// <summary>The time field of the reply.</summary>
+    public int Time => Get<int>("time");
+
+    /// <summary>The provider field of the reply.</summary>
+    public string Provider => Get<string>("provider")!;
+}
+
 /// <summary>The reply of pair_qr.</summary>
 public sealed class PairQrResult : DroidlineObject
 {
@@ -810,6 +855,12 @@ public static partial class ErrorCodes
 
     /// <summary>Upstream connection or authentication failed. reason is auth, timeout, refused or protocol.</summary>
     public const string ProxyFailed = "PROXY_FAILED";
+
+    /// <summary>The phone or the network refused the message. reason says why, such as no_service or radio_off.</summary>
+    public const string SendFailed = "SEND_FAILED";
+
+    /// <summary>Turn on location in the phone's quick settings or Settings, then try again.</summary>
+    public const string LocationOff = "LOCATION_OFF";
 
     /// <summary>Command not supported. The agent version is returned.</summary>
     public const string UnknownCmd = "UNKNOWN_CMD";
@@ -980,6 +1031,32 @@ public sealed class ProxyFailedException : DroidlineException
     /// <param name="fields">The extra fields the server sent.</param>
     public ProxyFailedException(string message, bool retryable = true, DroidlineObject? fields = null)
         : base(message, "PROXY_FAILED", retryable, fields, 502)
+    {
+    }
+}
+
+/// <summary>The phone or the network refused the message. reason says why, such as no_service or radio_off.</summary>
+public sealed class SendFailedException : DroidlineException
+{
+    /// <summary>Creates the exception the SDK throws for SEND_FAILED.</summary>
+    /// <param name="message">The server's message.</param>
+    /// <param name="retryable">Whether the call is safe to retry. Default: true.</param>
+    /// <param name="fields">The extra fields the server sent.</param>
+    public SendFailedException(string message, bool retryable = true, DroidlineObject? fields = null)
+        : base(message, "SEND_FAILED", retryable, fields, 502)
+    {
+    }
+}
+
+/// <summary>Turn on location in the phone's quick settings or Settings, then try again.</summary>
+public sealed class LocationOffException : DroidlineException
+{
+    /// <summary>Creates the exception the SDK throws for LOCATION_OFF.</summary>
+    /// <param name="message">The server's message.</param>
+    /// <param name="retryable">Whether the call is safe to retry. Default: false.</param>
+    /// <param name="fields">The extra fields the server sent.</param>
+    public LocationOffException(string message, bool retryable = false, DroidlineObject? fields = null)
+        : base(message, "LOCATION_OFF", retryable, fields, 409)
     {
     }
 }
@@ -1192,6 +1269,10 @@ internal static class ErrorFactory
                 return new ActivityBlockedException(message, retryable ?? false, fields);
             case "PROXY_FAILED":
                 return new ProxyFailedException(message, retryable ?? true, fields);
+            case "SEND_FAILED":
+                return new SendFailedException(message, retryable ?? true, fields);
+            case "LOCATION_OFF":
+                return new LocationOffException(message, retryable ?? false, fields);
             case "UNKNOWN_CMD":
                 return new UnknownCmdException(message, retryable ?? false, fields);
             case "UNSUPPORTED":
@@ -2529,6 +2610,115 @@ public partial class Device
         msg.Opt("query", query);
         msg.Opt("max", max);
         return RunValueAsync<IReadOnlyList<Contact>>("contacts", msg, cancellationToken);
+    }
+
+    /// <summary>Wait for a new text message and return it.</summary>
+    /// <remarks>Optional, needs the SMS permission like sms. The PC checks the phone's inbox every second, and only messages that arrive after the call starts count. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="address">Only from a number or sender containing this. Spaces and dashes are ignored.</param>
+    /// <param name="contains">Only messages whose text contains this, ignoring case.</param>
+    /// <param name="timeout">Seconds to wait. Default: 60.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="DroidlineTimeoutException">The action itself timed out. Safe to retry.</exception>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.WaitSmsAsync(contains: "인증번호", timeout: 120);</code></example>
+    public Task<Sms> WaitSmsAsync(string? address = null, string? contains = null, double? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Opt("address", address);
+        msg.Opt("contains", contains);
+        msg.Opt("timeout", timeout);
+        return RunValueAsync<Sms>("wait_sms", msg, cancellationToken);
+    }
+
+    /// <summary>Send a text message from the phone.</summary>
+    /// <remarks>Optional. Allow sending SMS on the app's Setup tab first. Sends from the phone's default SIM, and your carrier may charge for it. Long text goes out as several parts. Answers after the network accepts every part, or SEND_FAILED. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="number">Phone number to send to.</param>
+    /// <param name="text">Message text.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="SendFailedException">The phone or the network refused the message. reason says why, such as no_service or radio_off.</exception>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.SmsSendAsync("01012345678", "On my way");</code></example>
+    public Task<SmsSendResult> SmsSendAsync(string number, string text, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Add("number", number);
+        msg.Add("text", text);
+        return RunFieldsAsync<SmsSendResult>("sms_send", msg, cancellationToken);
+    }
+
+    /// <summary>Start a phone call.</summary>
+    /// <remarks>Optional. Allow phone calls on the app's Setup tab first. Opens the phone app already dialing and answers right away; end the call with hang_up. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="number">Phone number to call.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.DialAsync("01012345678");</code></example>
+    public Task DialAsync(string number, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Add("number", number);
+        return RunAsync("dial", msg, cancellationToken);
+    }
+
+    /// <summary>End the current call, or reject a ringing one.</summary>
+    /// <remarks>Optional, needs the phone permission like dial. Answers false when there was no call. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.HangUpAsync();</code></example>
+    public Task<bool> HangUpAsync(CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        return RunValueAsync<bool>("hang_up", msg, cancellationToken);
+    }
+
+    /// <summary>List a folder in the phone's shared storage.</summary>
+    /// <remarks>Optional. Allow file access on the app's Setup tab first. Paths are relative to shared storage (/sdcard), such as DCIM/Screenshots or Download, and cannot leave it. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="path">Folder to list. Empty means the top of shared storage. Default: "".</param>
+    /// <param name="sort">name sorts by name, time puts the newest first. Default: "name".</param>
+    /// <param name="max">Most entries to return, up to 1000. Default: 200.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="BadArgsException">Missing or invalid parameters.</exception>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.FilesAsync("DCIM/Screenshots", sort: "time", max: 1);</code></example>
+    public Task<IReadOnlyList<FileEntry>> FilesAsync(string? path = null, string? sort = null, int? max = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Opt("path", path);
+        msg.Opt("sort", sort);
+        msg.Opt("max", max);
+        return RunValueAsync<IReadOnlyList<FileEntry>>("files", msg, cancellationToken);
+    }
+
+    /// <summary>Copy a file from the phone's shared storage to the PC.</summary>
+    /// <remarks>Optional, needs file access like files. Up to 32 MB. Without path the SDKs return the bytes and the CLI saves the file under its own name. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="file">File on the phone, relative to shared storage, such as Download/report.pdf.</param>
+    /// <param name="path">Save to this local file.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <returns>The image bytes. They are also written to path when it is given.</returns>
+    /// <exception cref="BadArgsException">Missing or invalid parameters.</exception>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.PullAsync("Download/report.pdf", "report.pdf");</code></example>
+    public Task<byte[]> PullAsync(string file, string? path = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Add("file", file);
+        return SaveImageAsync("pull", path, msg, cancellationToken);
+    }
+
+    /// <summary>The phone's current location.</summary>
+    /// <remarks>Optional. Allow location on the app's Setup tab first, including "Allow all the time", because Droidline asks while it runs in the background. Answers LOCATION_OFF when location is turned off on the phone. The MCP server lists this tool only when --tools names it.</remarks>
+    /// <param name="timeout">Seconds to wait for a new fix. Default: 10.</param>
+    /// <param name="maxAge">A fix the phone already has is good enough if it is at most this old. 0 always asks for a new one. Default: 60.</param>
+    /// <param name="cancellationToken">Stops waiting for the reply. A command already sent may still run on the phone.</param>
+    /// <exception cref="DroidlineTimeoutException">The action itself timed out. Safe to retry.</exception>
+    /// <exception cref="LocationOffException">Turn on location in the phone's quick settings or Settings, then try again.</exception>
+    /// <exception cref="NoPermissionException">A permission such as VPN or notification access is missing. The permission name is returned.</exception>
+    /// <example><code>await d.LocationAsync();</code></example>
+    public Task<LocationResult> LocationAsync(double? timeout = null, double? maxAge = null, CancellationToken cancellationToken = default)
+    {
+        var msg = new Params();
+        msg.Opt("timeout", timeout);
+        msg.Opt("max_age", maxAge);
+        return RunFieldsAsync<LocationResult>("location", msg, cancellationToken);
     }
 }
 

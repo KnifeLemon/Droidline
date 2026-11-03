@@ -477,6 +477,9 @@ func (a *Agent) PostNotification(pkg, title, text string) {
 	}
 }
 
+// PostSMS stores a text message in the simulated inbox, as if it had just arrived.
+func (a *Agent) PostSMS(address, text string) { a.ui.addSMS("inbox", address, text) }
+
 func copyMsg(m map[string]any) map[string]any {
 	out := make(map[string]any, len(m))
 	for k, v := range m {
